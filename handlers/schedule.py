@@ -44,8 +44,48 @@ async def current(msg: types.Message):
     if found: 
         text = "\n\n➖ ➖ ➖\n\n".join(found) + ERROR_FOOTER
         await msg.answer(text, parse_mode="HTML", disable_web_page_preview=True)
-    else: 
-        await msg.answer(f"☕ Зараз пар немає ({week_label(w_type)}) {header_info}.")
+    else:
+        # Search for next lesson
+        df = df.sort_values("Час")
+        now = datetime.now()
+        next_lesson = None
+        next_subj = None
+        
+        for _, row in df.iterrows():
+            try:
+                # Parse lesson start time
+                lesson_start = datetime.strptime(str(row['Час']), "%H:%M").replace(
+                    year=now.year, month=now.month, day=now.day
+                )
+                
+                if lesson_start > now:
+                    # Check if lesson specifically exists this week (numerator/denominator)
+                    subj = filter_current_lesson_name(row['Предмет'], w_type)
+                    if subj:
+                        next_lesson = row
+                        next_subj = subj
+                        break
+            except Exception:
+                continue
+
+        if next_lesson is not None:
+            # Calculate time difference
+            delta_minutes = int((lesson_start - now).total_seconds() / 60)
+            
+            info = f"Група: {next_lesson['Група']}" if role == "teacher" else f"👨‍🏫 {next_lesson['Викладач']}"
+            link = str(next_lesson['Кабінет/Zoom'])
+            link_txt = f"\n🚪 Кабінет: {link}" if link not in ['-', 'nan'] else ""
+            
+            txt = (
+                f"☕ <b>Зараз перерва</b> ({week_label(w_type)}) {header_info}\n\n"
+                f"🔜 Наступна пара: <b>{next_subj}</b>\n"
+                f"⏰ Початок о <b>{next_lesson['Час']}</b> (через {delta_minutes} хв)\n"
+                f"<i>{info}</i>{link_txt}"
+                f"{ERROR_FOOTER}"
+            )
+            await msg.answer(txt, parse_mode="HTML")
+        else:
+            await msg.answer(f"🎉 <b>На сьогодні все!</b> ({week_label(w_type)}) {header_info}\nБільше пар немає. Відпочивайте!{ERROR_FOOTER}", parse_mode="HTML")
 
 @router.message(F.text == "📅 Розклад на сьогодні")
 async def today(msg: types.Message):

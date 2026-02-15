@@ -17,7 +17,7 @@ def toggle_group(uid, group):
     key = f"user:{uid}:groups"
     if r.sismember(key, group): r.srem(key, group)
     else: r.sadd(key, group)
-def get_all_users_keys(): return r.keys("user:*:role")
+def get_all_users_keys(): return r.scan_iter("user:*:role")
 
 def set_notification_status(uid, status): r.set(f"user:{uid}:notifications", "1" if status else "0")
 def get_notification_status(uid):

@@ -1,5 +1,6 @@
 from aiogram import types, F, Router
 from aiogram.filters import Command
+from aiogram.types import ReplyKeyboardRemove
 from core.states import Form
 from keyboards.builders import role_kb, settings_kb
 from services.redis_service import get_notification_status, set_notification_status
@@ -30,6 +31,11 @@ async def toggle_notif(cb: types.CallbackQuery):
 @router.callback_query(F.data == "change_role")
 async def change_role_cb(cb: types.CallbackQuery, state):
     await cmd_start(cb.message, state)
+
+@router.message(F.text == "🛑 Завершити роботу")
+async def stop_work(msg: types.Message, state):
+    await state.clear()
+    await msg.answer("🛑 Роботу завершено. Щоб почати знову, натисніть /start", reply_markup=ReplyKeyboardRemove())
 
 @router.message(Command("status"))
 async def status(msg: types.Message):
