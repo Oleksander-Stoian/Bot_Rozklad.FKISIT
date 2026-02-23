@@ -38,3 +38,15 @@ async def save(cb: types.CallbackQuery, state):
     await state.clear()
     await cb.message.delete()
     await cb.message.answer("✅ Налаштовано! Тепер користуйтесь меню знизу.", reply_markup=main_menu())
+
+
+#проверка есть ли роль. если нет - окно выбора
+@router.message(F.text == "/start")
+async def start(msg: types.Message):
+    role = get_role(msg.from_user.id)
+
+    if not role:
+        await msg.answer("Оберіть роль:", reply_markup=role_kb())
+        return
+
+    await msg.answer("Головне меню:", reply_markup=main_menu())
