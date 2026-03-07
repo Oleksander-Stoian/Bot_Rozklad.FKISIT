@@ -16,4 +16,5 @@ def main_menu():
     # 4 рядок: Налаштування
     # 5 рядок: Завершити роботу
     b.adjust(1, 2, 1, 1, 1)
+    
     return b.as_markup(resize_keyboard=True)

@@ -9,6 +9,7 @@ services:
       - .env
     environment:
       - REDIS_HOST=redis
+      - TZ=Europe/Kyiv
     depends_on:
       - redis
 
