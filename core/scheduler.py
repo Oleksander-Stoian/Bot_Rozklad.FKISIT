@@ -65,3 +65,36 @@ async def scheduler():
         now = datetime.now()
         delay = 60 - now.second
         await asyncio.sleep(delay)
+        
+
+
+
+#изменение 27.02 дима (ПОЛНОСТЬЮ заменяешь логику обхода пользователей
+#Оставляешь только проверку очереди событий
+
+import asyncio
+import json
+from services.redis_service import get_due_events, remove_event
+from config import redis  # если у тебя клиент там
+
+
+async def process_event(event_raw):
+    event = json.loads(event_raw)
+    user_id = event["user_id"]
+
+    # тут вставляешь отправку уведомления
+    print(f"Отправка уведомления {user_id}")
+
+
+async def check_schedule():
+    events = await get_due_events(redis)
+
+    for event in events:
+        await process_event(event)
+        await remove_event(redis, event)
+
+
+async def scheduler_loop():
+    while True:
+        await check_schedule()
+        await asyncio.sleep(30)
