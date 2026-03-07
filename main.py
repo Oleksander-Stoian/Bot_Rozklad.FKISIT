@@ -39,3 +39,14 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
+
+#27.02 дима
+#Запускаем scheduler параллельно боту
+from core.scheduler import scheduler_loop
+import asyncio
+
+
+async def main():
+    asyncio.create_task(scheduler_loop())
+
+    # дальше твой запуск бота
