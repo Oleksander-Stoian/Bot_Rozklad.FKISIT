@@ -32,7 +32,8 @@ async def broadcast(msg: types.Message):
     errors = 0
     
     # Використовуємо scan_iter (безпечний ітератор)
-    for key in get_all_users_keys():
+    keys = await get_all_users_keys()
+    for key in keys:
         try:
             uid = key.split(":")[1]
             await bot.send_message(uid, f"📢 <b>ОГОЛОШЕННЯ</b>\n\n{text}", parse_mode="HTML")
