@@ -20,12 +20,12 @@ def get_format_icon(row):
 @router.message(F.text == "🔴 Яка зараз пара?")
 async def current(msg: types.Message):
     uid = msg.from_user.id
-    role = get_role(uid)
+    role = await get_role(uid)
     w_type = get_week_type()
     today = datetime.now().strftime("%A")
     
-    groups = get_groups(uid) if role == "student" else None
-    teach = get_teacher_name(uid) if role == "teacher" else None
+    groups = await get_groups(uid) if role == "student" else None
+    teach = await get_teacher_name(uid) if role == "teacher" else None
     df = filter_schedule(day=today, role=role, groups=groups, teacher_name=teach)
     
     if role == "student" and groups:
@@ -111,9 +111,9 @@ async def today(msg: types.Message):
     uid = msg.from_user.id
     day = datetime.now().strftime("%A")
     w_type = get_week_type()
-    role = get_role(uid)
-    groups = get_groups(uid) if role == "student" else None
-    teach = get_teacher_name(uid) if role == "teacher" else None
+    role = await get_role(uid)
+    groups = await get_groups(uid) if role == "student" else None
+    teach = await get_teacher_name(uid) if role == "teacher" else None
     
     df = filter_schedule(day=day, role=role, groups=groups, teacher_name=teach).sort_values("Час")
     
@@ -205,11 +205,11 @@ def get_week_kb(current_day=None):
 @router.message(F.text == "🗓 Розклад на тиждень")
 async def week_cmd(msg: types.Message):
     uid = msg.from_user.id
-    role = get_role(uid)
+    role = await get_role(uid)
     w_type = get_week_type()
     
-    groups = get_groups(uid) if role == "student" else None
-    teach = get_teacher_name(uid) if role == "teacher" else None
+    groups = await get_groups(uid) if role == "student" else None
+    teach = await get_teacher_name(uid) if role == "teacher" else None
     
     # За замовчуванням показуємо сьогоднішній день. Якщо неділя - показуємо понеділок.
     today = datetime.now().strftime("%A")
@@ -223,11 +223,11 @@ async def week_cmd(msg: types.Message):
 async def process_wkday(cb: types.CallbackQuery):
     day_en = cb.data.split("_")[1] # Витягуємо день, наприклад 'Monday'
     uid = cb.from_user.id
-    role = get_role(uid)
+    role = await get_role(uid)
     w_type = get_week_type()
     
-    groups = get_groups(uid) if role == "student" else None
-    teach = get_teacher_name(uid) if role == "teacher" else None
+    groups = await get_groups(uid) if role == "student" else None
+    teach = await get_teacher_name(uid) if role == "teacher" else None
     
     text = generate_day_schedule_text(day_en, role, groups, teach, w_type)
     

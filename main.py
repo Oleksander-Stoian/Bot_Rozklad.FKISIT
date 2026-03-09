@@ -11,16 +11,22 @@ async def main():
     logging.basicConfig(level=logging.INFO, stream=sys.stdout)
     
     # Перевірка Redis перед запуском
-    try:
-        r = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, socket_connect_timeout=1)
-        r.ping()
-        print("✅ Підключення до Redis успішне!")
-    except Exception as e:
-        print("\n❌ ПОМИЛКА: Не вдалося підключитися до Redis!")
-        print(f"Деталі: {e}")
-        print(f"Переконайтеся, що Redis-сервер запущений на {REDIS_HOST}:{REDIS_PORT}")
-        print("Запустіть redis-server.exe і спробуйте знову.\n")
-        return
+    import time
+    max_retries = 5
+    for attempt in range(max_retries):
+        try:
+            r = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, socket_connect_timeout=2)
+            r.ping()
+            print("✅ Підключення до Redis успішне!")
+            break
+        except Exception as e:
+            print(f"⏳ Очікування Redis (спроба {attempt + 1}/{max_retries})...")
+            if attempt == max_retries - 1:
+                print("\n❌ ПОМИЛКА: Не вдалося підключитися до Redis!")
+                print(f"Деталі: {e}")
+                print(f"Переконайтеся, що Redis-сервер запущений на {REDIS_HOST}:{REDIS_PORT}")
+                return
+            time.sleep(2)
 
     print("🤖 Бот запущено (Full Fix)!")
     
@@ -40,13 +46,3 @@ async def main():
 if __name__ == "__main__":
     asyncio.run(main())
 
-#27.02 дима
-#Запускаем scheduler параллельно боту
-from core.scheduler import scheduler_loop
-import asyncio
-
-
-async def main():
-    asyncio.create_task(scheduler_loop())
-
-    # дальше твой запуск бота

@@ -1,65 +1,60 @@
-import redis
+from redis.asyncio import Redis
 from config import REDIS_HOST, REDIS_PORT
 
-r = redis.Redis(
+r = Redis(
     host=REDIS_HOST,
     port=REDIS_PORT,
     decode_responses=True
 )
 
-def get_role(uid): return r.get(f"user:{uid}:role")
-def set_role(uid, role): r.set(f"user:{uid}:role", role)
-def set_teacher_name(uid, name): r.set(f"user:{uid}:teacher_name", name)
-def get_teacher_name(uid): return r.get(f"user:{uid}:teacher_name")
-def get_groups(uid): return r.smembers(f"user:{uid}:groups")
-def clear_groups(uid): r.delete(f"user:{uid}:groups")
-def toggle_group(uid, group):
-    key = f"user:{uid}:groups"
-    if r.sismember(key, group): r.srem(key, group)
-    else: r.sadd(key, group)
-def get_all_users_keys(): return r.scan_iter("user:*:role")
+async def get_role(uid): return await r.get(f"user:{uid}:role")
+async def set_role(uid, role): await r.set(f"user:{uid}:role", role)
 
-def set_notification_status(uid, status): r.set(f"user:{uid}:notifications", "1" if status else "0")
-def get_notification_status(uid):
-    val = r.get(f"user:{uid}:notifications")
+# Teacher Reverse Indexes
+async def set_teacher_name(uid, name): 
+    old_name = await get_teacher_name(uid)
+    if old_name:
+        await r.srem(f"teacher:{old_name}:users", uid)
+    await r.set(f"user:{uid}:teacher_name", name)
+    if name:
+        await r.sadd(f"teacher:{name}:users", uid)
+        
+async def get_teacher_name(uid): return await r.get(f"user:{uid}:teacher_name")
+async def get_users_for_teacher(name): return await r.smembers(f"teacher:{name}:users")
+
+# Student Reverse Indexes
+async def get_groups(uid): return await r.smembers(f"user:{uid}:groups")
+
+async def clear_groups(uid): 
+    groups = await get_groups(uid)
+    for group in groups:
+        await r.srem(f"group:{group}:users", uid)
+    await r.delete(f"user:{uid}:groups")
+
+async def toggle_group(uid, group):
+    key = f"user:{uid}:groups"
+    is_member = await r.sismember(key, group)
+    if is_member: 
+        await r.srem(key, group)
+        await r.srem(f"group:{group}:users", uid)
+    else: 
+        await r.sadd(key, group)
+        await r.sadd(f"group:{group}:users", uid)
+
+async def get_users_in_group(group): return await r.smembers(f"group:{group}:users")
+
+# General functions
+async def get_all_users_keys(): 
+    keys = []
+    async for key in r.scan_iter("user:*:role"):
+        keys.append(key)
+    return keys
+
+async def set_notification_status(uid, status): await r.set(f"user:{uid}:notifications", "1" if status else "0")
+async def get_notification_status(uid):
+    val = await r.get(f"user:{uid}:notifications")
     return val == "1" if val is not None else True # Default True
 
 
 
 
-#изменение 27.02 дима
-import json
-import time
-from redis.asyncio import Redis
-
-SCHEDULE_KEY = "schedule_events"
-
-# предполагаю что у тебя уже есть redis клиент
-# например: redis = Redis(...)
-
-async def add_schedule_event(redis: Redis, user_id: int, timestamp: int):
-    event = {
-        "user_id": user_id,
-        "timestamp": timestamp
-    }
-
-    await redis.zadd(
-        SCHEDULE_KEY,
-        {json.dumps(event): timestamp}
-    )
-
-
-async def get_due_events(redis: Redis):
-    now = int(time.time())
-
-    events = await redis.zrangebyscore(
-        SCHEDULE_KEY,
-        min=0,
-        max=now
-    )
-
-    return events
-
-
-async def remove_event(redis: Redis, event: str):
-    await redis.zrem(SCHEDULE_KEY, event)

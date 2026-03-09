@@ -15,7 +15,7 @@ async def cmd_start(msg: types.Message, state):
 @router.message(F.text == "⚙️ Налаштування")
 async def settings(msg: types.Message):
     uid = msg.from_user.id
-    notif_on = get_notification_status(uid)
+    notif_on = await get_notification_status(uid)
     await msg.answer("⚙️ <b>Налаштування</b>", parse_mode="HTML", reply_markup=settings_kb(notif_on))
 
 @router.callback_query(F.data.startswith("toggle_notif_"))
@@ -23,7 +23,7 @@ async def toggle_notif(cb: types.CallbackQuery):
     action = cb.data.split("_")[2]
     uid = cb.from_user.id
     new_status = True if action == "on" else False
-    set_notification_status(uid, new_status)
+    await set_notification_status(uid, new_status)
     
     await cb.message.edit_reply_markup(reply_markup=settings_kb(new_status))
     await cb.answer("Налаштування збережено!")
