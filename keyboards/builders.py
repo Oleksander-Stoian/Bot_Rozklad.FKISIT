@@ -18,9 +18,10 @@ def courses_kb(courses):
 
 def settings_kb(notifications_on: bool):
     b = InlineKeyboardBuilder()
-    text = "🔔 Нагадування: ВВІМК" if notifications_on else "🔕 Нагадування: ВИМК"
+    text = "🔔 Нагадування: УВІМК" if notifications_on else "🔕 Нагадування: ВИМК"
     b.button(text=text, callback_data=f"toggle_notif_{'off' if notifications_on else 'on'}")
     b.button(text="🔄 Змінити роль", callback_data="change_role")
+    b.button(text="🛑 Завершити роботу", callback_data="stop_work")
     b.adjust(1)
     return b.as_markup()
 

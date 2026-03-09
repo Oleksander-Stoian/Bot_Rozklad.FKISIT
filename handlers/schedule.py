@@ -23,12 +23,12 @@ def get_format_icon(row):
 # 🔴 Яка зараз пара?
 # ==========================================
 
-@router.message(F.text == "🔴 Яка зараз пара?")
+@router.message(F.text == "⚡ Зараз")
 async def current(msg: types.Message):
     uid = msg.from_user.id
     role = await get_role(uid)
     if not role:
-        await msg.answer("⚠️ Спочатку оберіть роль. Натисніть /start")
+        await msg.answer("⚠️ Спочатку оберіть Вашу роль. Натисніть /start")
         return
 
     w_type = get_week_type()
@@ -123,12 +123,12 @@ async def current(msg: types.Message):
 # 📅 Розклад на сьогодні
 # ==========================================
 
-@router.message(F.text == "📅 Розклад на сьогодні")
+@router.message(F.text == "📅 Сьогодні")
 async def today(msg: types.Message):
     uid = msg.from_user.id
     role = await get_role(uid)
     if not role:
-        await msg.answer("⚠️ Спочатку оберіть роль. Натисніть /start")
+        await msg.answer("⚠️ Спочатку оберіть Вашу роль. Натисніть /start")
         return
 
     day = datetime.now(KYIV_TZ).strftime("%A")
@@ -222,12 +222,12 @@ def get_week_kb(current_day=None):
     ])
     return kb
 
-@router.message(F.text == "🗓 Розклад на тиждень")
+@router.message(F.text == "🗓 На тиждень")
 async def week_cmd(msg: types.Message):
     uid = msg.from_user.id
     role = await get_role(uid)
     if not role:
-        await msg.answer("⚠️ Спочатку оберіть роль. Натисніть /start")
+        await msg.answer("⚠️ Спочатку оберіть Вашу роль. Натисніть /start")
         return
 
     w_type = get_week_type()
