@@ -28,3 +28,28 @@ def filter_current_lesson_name(subject, w_type):
     if "(ч)" in subject: return subject.replace("(ч)", "").strip() if w_type == "upper" else None
     if "(з)" in subject: return subject.replace("(з)", "").strip() if w_type == "lower" else None
     return subject
+
+def get_current_lesson_info(subject, teacher, w_type):
+    if pd.isna(subject) or str(subject) in ["-", "nan"]: return None, None
+    subject = str(subject)
+    teacher = str(teacher)
+    
+    if "//" in subject:
+        parts_s = subject.split("//")
+        parts_t = teacher.split("//") if "//" in teacher else [teacher, teacher]
+        
+        if w_type == "upper":
+            s_out = parts_s[0].strip() if len(parts_s) > 0 else ""
+            t_out = parts_t[0].strip() if len(parts_t) > 0 else ""
+            return s_out, t_out
+        else:
+            s_out = parts_s[1].strip() if len(parts_s) > 1 else parts_s[0].strip()
+            t_out = parts_t[1].strip() if len(parts_t) > 1 else parts_t[0].strip()
+            return s_out, t_out
+            
+    if "(ч)" in subject: 
+        return (subject.replace("(ч)", "").strip(), teacher) if w_type == "upper" else (None, None)
+    if "(з)" in subject: 
+        return (subject.replace("(з)", "").strip(), teacher) if w_type == "lower" else (None, None)
+        
+    return subject, teacher
