@@ -1,10 +1,16 @@
 import pandas as pd
 
-def format_lesson_week(subject, teacher, room, w_current, group):
+def format_lesson_week(subject, teacher, room, w_current, group, lesson_fmt=None):
     if pd.isna(subject) or str(subject) in ["-", "nan"]: return None
     subject, teacher = str(subject), str(teacher)
-    room = str(room) if str(room) not in ["-", "nan"] else ""
-    room_str = f"[{room}]" if room else ""
+    
+    # Handle optional format display
+    if str(lesson_fmt).lower().strip() == "дистанційно":
+        room_str = f" [💻 Дист. {room}]" if str(room) not in ["-", "nan", ""] else " [💻 Дистанційно]"
+    else:
+        room = str(room) if str(room) not in ["-", "nan"] else ""
+        room_str = f" [{room}]" if room else ""
+        
     grp_str = f" <i>(Гр. {group})</i>"
 
     if "//" in subject:
