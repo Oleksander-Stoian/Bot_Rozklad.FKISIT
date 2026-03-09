@@ -7,10 +7,19 @@ from services.redis_service import get_notification_status, set_notification_sta
 
 router = Router()
 
+ONBOARDING_TEXT = (
+    "👋 <b>Вітаємо!</b> Я — бот розкладу ФКІСТ.\n\n"
+    "Можу показати:\n"
+    "• Яка пара зараз ⚡\n"
+    "• Розклад на сьогодні та тиждень 📅\n"
+    "• Нагадати перед парою 🔔\n\n"
+    "Будь ласка, оберіть Вашу роль:"
+)
+
 @router.message(Command("start"))
 async def cmd_start(msg: types.Message, state):
     await state.clear()
-    await msg.answer("👋 <b>Вітаю!</b>\nОберіть вашу роль:", parse_mode="HTML", reply_markup=role_kb())
+    await msg.answer(ONBOARDING_TEXT, parse_mode="HTML", reply_markup=role_kb())
 
 @router.message(F.text == "⚙️ Налаштування")
 async def settings(msg: types.Message):
@@ -24,18 +33,24 @@ async def toggle_notif(cb: types.CallbackQuery):
     uid = cb.from_user.id
     new_status = True if action == "on" else False
     await set_notification_status(uid, new_status)
-    
     await cb.message.edit_reply_markup(reply_markup=settings_kb(new_status))
     await cb.answer("Налаштування збережено!")
 
 @router.callback_query(F.data == "change_role")
 async def change_role_cb(cb: types.CallbackQuery, state):
-    await cmd_start(cb.message, state)
-
-@router.message(F.text == "🛑 Завершити роботу")
-async def stop_work(msg: types.Message, state):
     await state.clear()
-    await msg.answer("🛑 Роботу завершено. Щоб почати знову, натисніть /start", reply_markup=ReplyKeyboardRemove())
+    await cb.message.edit_text(ONBOARDING_TEXT, parse_mode="HTML", reply_markup=role_kb())
+    await cb.answer()
+
+@router.callback_query(F.data == "stop_work")
+async def stop_work_cb(cb: types.CallbackQuery, state):
+    await state.clear()
+    await cb.message.delete()
+    await cb.message.answer(
+        "🛑 Роботу завершено.\nЩоб розпочати знову — натисніть /start",
+        reply_markup=ReplyKeyboardRemove()
+    )
+    await cb.answer()
 
 @router.message(Command("status"))
 async def status(msg: types.Message):

@@ -19,7 +19,7 @@ async def set_teach(cb: types.CallbackQuery):
     name = cb.data.split("_", 2)[2]
     await set_teacher_name(cb.from_user.id, name)
     await cb.message.delete()
-    await cb.message.answer(f"✅ Вітаю, {name}!", reply_markup=main_menu())
+    await cb.message.answer(f"✅ Вітаємо, {name}!", reply_markup=main_menu())
 
 @router.callback_query(F.data.startswith("teach_page_"))
 async def teacher_page(cb: types.CallbackQuery):

@@ -9,14 +9,14 @@ router = Router()
 @router.callback_query(F.data == "role_student")
 async def role_student(cb: types.CallbackQuery):
     await set_role(cb.from_user.id, "student")
-    await cb.message.edit_text("🎓 Оберіть курс:", reply_markup=courses_kb(get_all_courses()))
+    await cb.message.edit_text("🎓 Оберіть Ваш курс:", reply_markup=courses_kb(get_all_courses()))
 
 @router.callback_query(F.data.startswith("course_"))
 async def course_chosen(cb: types.CallbackQuery):
     course = cb.data.split("_")[1]
     await clear_groups(cb.from_user.id)
     groups = get_groups_by_course(course)
-    await cb.message.edit_text(f"✅ {course} курс. Оберіть групи:", reply_markup=groups_kb(groups, course, []))
+    await cb.message.edit_text(f"✅ {course} курс. Оберіть Ваші групи:", reply_markup=groups_kb(groups, course, []))
 
 @router.callback_query(F.data.startswith("toggle_group_"))
 async def toggle_grp(cb: types.CallbackQuery):
@@ -36,4 +36,4 @@ async def toggle_grp(cb: types.CallbackQuery):
 async def save(cb: types.CallbackQuery, state):
     await state.clear()
     await cb.message.delete()
-    await cb.message.answer("✅ Налаштовано! Тепер користуйтесь меню знизу.", reply_markup=main_menu())
+    await cb.message.answer("✅ Налаштовано! Тепер Ви можете переглядати розклад.", reply_markup=main_menu())
