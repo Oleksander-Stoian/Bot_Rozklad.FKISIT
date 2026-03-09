@@ -11,7 +11,6 @@ async def main():
     logging.basicConfig(level=logging.INFO, stream=sys.stdout)
     
     # Перевірка Redis перед запуском
-    import time
     max_retries = 5
     for attempt in range(max_retries):
         try:
@@ -26,7 +25,7 @@ async def main():
                 print(f"Деталі: {e}")
                 print(f"Переконайтеся, що Redis-сервер запущений на {REDIS_HOST}:{REDIS_PORT}")
                 return
-            time.sleep(2)
+            await asyncio.sleep(2)
 
     print("🤖 Бот запущено (Full Fix)!")
     
