@@ -4,6 +4,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 TOKEN = os.getenv("BOT_TOKEN")
+ADMIN_USERNAME = os.getenv("ADMIN_USERNAME", "NeonTheFox")
 FILE_NAME = "rozklad_pro.xlsx"
 
 REDIS_HOST = os.getenv("REDIS_HOST", "localhost")

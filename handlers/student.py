@@ -1,14 +1,10 @@
 from aiogram import types, F, Router
-from core.states import Form
 from services.redis_service import set_role, clear_groups, toggle_group, get_groups
 from services.excel_service import get_all_courses, get_groups_by_course
 from keyboards.builders import courses_kb, groups_kb
 from keyboards.reply import main_menu
 
 router = Router()
-
-# ЗМІННА ДЛЯ НІКУ АДМІНА (щоб студент знав, куди писати, якщо щось не так)
-ADMIN_USERNAME = "NeonTheFox"
 
 @router.callback_query(F.data == "role_student")
 async def role_student(cb: types.CallbackQuery):
@@ -25,7 +21,10 @@ async def course_chosen(cb: types.CallbackQuery):
 @router.callback_query(F.data.startswith("toggle_group_"))
 async def toggle_grp(cb: types.CallbackQuery):
     try:
-        _, _, grp, course = cb.data.split("_")
+        # maxsplit=3 коректно обробляє назви груп з підкресленням (напр. ФКІ_21)
+        # формат: toggle_group_{grp}_{course}
+        parts = cb.data.split("_", 3)
+        grp, course = parts[2], parts[3]
         await toggle_group(cb.from_user.id, grp)
         selected = await get_groups(cb.from_user.id)
         groups = get_groups_by_course(course)
@@ -38,17 +37,3 @@ async def save(cb: types.CallbackQuery, state):
     await state.clear()
     await cb.message.delete()
     await cb.message.answer("✅ Налаштовано! Тепер користуйтесь меню знизу.", reply_markup=main_menu())
-
-
-#проверка есть ли роль. если нет - окно выбора
-from keyboards.builders import role_kb
-
-@router.message(F.text == "/start")
-async def start(msg: types.Message):
-    role = await get_role(msg.from_user.id)
-
-    if not role:
-        await msg.answer("Оберіть роль:", reply_markup=role_kb())
-        return
-
-    await msg.answer("Головне меню:", reply_markup=main_menu())

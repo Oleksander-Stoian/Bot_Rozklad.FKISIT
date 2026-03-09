@@ -1,6 +1,9 @@
+import logging
 import pandas as pd
 from functools import lru_cache
 from config import FILE_NAME
+
+logger = logging.getLogger(__name__)
 
 @lru_cache(maxsize=1)
 def load_schedule():
@@ -15,7 +18,9 @@ def load_schedule():
         # -----------------
         
         return df
-    except: return pd.DataFrame()
+    except Exception as e:
+        logger.error(f"Помилка при завантаженні розкладу: {e}")
+        return pd.DataFrame()
 
 def clear_cache(): load_schedule.cache_clear()
 
@@ -43,12 +48,17 @@ def filter_schedule(day=None, specific_time=None, role=None, groups=None, teache
     df = load_schedule()
     if df.empty: return pd.DataFrame()
     
-    # Фільтрація
+    # Фільтрація за днем та часом
     if day and 'День' in df.columns: 
         df = df[df['День'] == day]
     if specific_time and 'Час' in df.columns: 
         df = df[df['Час'] == specific_time]
     
+    # Якщо роль не вказана — повертаємо весь відфільтрований DataFrame
+    # (використовується планувальником для пошуку всіх пар у хвилину X)
+    if role is None:
+        return df
+
     if role == "student" and groups and 'Група' in df.columns: 
         return df[df['Група'].isin(groups)]
     elif role == "teacher" and teacher_name and 'Викладач' in df.columns: 

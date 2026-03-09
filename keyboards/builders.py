@@ -1,6 +1,8 @@
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 from aiogram import types
 
+TEACHERS_PER_PAGE = 40  # 40 викладачів на сторінку (2 колонки × 20 рядків)
+
 def role_kb():
     b = InlineKeyboardBuilder()
     b.button(text="🎓 Я Студент", callback_data="role_student")
@@ -31,8 +33,32 @@ def groups_kb(groups, current_course, selected_groups):
     b.row(types.InlineKeyboardButton(text="💾 Зберегти", callback_data="save_groups"))
     return b.as_markup()
 
-def teachers_kb(teachers):
+def teachers_kb(teachers, page: int = 0):
+    """
+    Пагінована клавіатура викладачів.
+    40 викладачів на сторінку + кнопки навігації.
+    """
     b = InlineKeyboardBuilder()
-    for t in teachers[:60]: b.button(text=t, callback_data=f"set_teach_{t}")
+    total = len(teachers)
+    total_pages = max(1, (total + TEACHERS_PER_PAGE - 1) // TEACHERS_PER_PAGE)
+    page = max(0, min(page, total_pages - 1))  # clamp
+
+    start = page * TEACHERS_PER_PAGE
+    end = start + TEACHERS_PER_PAGE
+    for t in teachers[start:end]:
+        b.button(text=t, callback_data=f"set_teach_{t}")
     b.adjust(2)
+
+    # Навігаційні кнопки
+    nav = []
+    if page > 0:
+        nav.append(types.InlineKeyboardButton(text="⬅️ Назад", callback_data=f"teach_page_{page - 1}"))
+    if total_pages > 1:
+        nav.append(types.InlineKeyboardButton(text=f"📄 {page + 1}/{total_pages}", callback_data="noop"))
+    if page < total_pages - 1:
+        nav.append(types.InlineKeyboardButton(text="Далі ➡️", callback_data=f"teach_page_{page + 1}"))
+
+    if nav:
+        b.row(*nav)
+
     return b.as_markup()
