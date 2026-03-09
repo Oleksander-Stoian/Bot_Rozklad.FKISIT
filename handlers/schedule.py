@@ -146,7 +146,7 @@ async def today(msg: types.Message):
 # 🗓 ІНТЕРАКТИВНИЙ РОЗКЛАД НА ТИЖДЕНЬ
 # ==========================================
 
-def generate_day_schedule_text(day_en, role, groups, teach, w_type):
+async def generate_day_schedule_text(day_en, role, groups, teach, w_type):
     """Генерує текст розкладу на один конкретний день"""
     df = filter_schedule(role=role, groups=groups, teacher_name=teach)
     
@@ -216,7 +216,7 @@ async def week_cmd(msg: types.Message):
     if today not in ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']:
         today = 'Monday'
         
-    text = generate_day_schedule_text(today, role, groups, teach, w_type)
+    text = await generate_day_schedule_text(today, role, groups, teach, w_type)
     await msg.answer(text, reply_markup=get_week_kb(today), parse_mode="HTML")
 
 @router.callback_query(F.data.startswith("wd_"))
@@ -229,7 +229,7 @@ async def process_wkday(cb: types.CallbackQuery):
     groups = await get_groups(uid) if role == "student" else None
     teach = await get_teacher_name(uid) if role == "teacher" else None
     
-    text = generate_day_schedule_text(day_en, role, groups, teach, w_type)
+    text = await generate_day_schedule_text(day_en, role, groups, teach, w_type)
     
     try:
         # Оновлюємо текст і переміщуємо маркер 🔹 на нову кнопку
