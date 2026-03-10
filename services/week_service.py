@@ -19,7 +19,4 @@ def get_week_type(date_obj=None):
     return "lower" if is_even else "upper"
 
 def week_label(w_type):
-    """
-    Повертає гарну назву для виводу користувачу.
-    """
-    return "🟥 Верхній (Непарний)" if w_type == "upper" else "🟦 Нижній (Парний)"
+    return "🟥 Непарний тиждень" if w_type == "upper" else "🟦 Парний тиждень"
