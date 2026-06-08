@@ -24,3 +24,7 @@ def get_notification_status(uid):
     val = r.get(f"user:{uid}:notifications")
     return val == "1" if val is not None else True # Default True
 
+def clear_user(uid):
+    r.delete(f"user:{uid}:role")
+    r.delete(f"user:{uid}:teacher_name")
+    r.delete(f"user:{uid}:groups")
