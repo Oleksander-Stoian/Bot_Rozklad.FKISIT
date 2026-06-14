@@ -9,9 +9,25 @@ services:
       - .env
     environment:
       - REDIS_HOST=redis
-      - TZ=Europe/Kyiv
     depends_on:
       - redis
+    volumes:
+      - ./:/app  # Бот читає розклад звідси
+
+  web:
+    build: ./web
+    container_name: admin_panel
+    restart: always
+    env_file:
+      - .env
+    ports:
+      - "8000:8000"
+    depends_on:
+      - redis
+    environment:
+      - REDIS_HOST=redis
+    volumes:
+      - ./:/data # Панель зберігає оновлений розклад сюди
 
   redis:
     image: redis:7-alpine
@@ -21,6 +37,7 @@ services:
       - "6379:6379"
     volumes:
       - redis_data:/data
+    command: redis-server --save 60 1 # Зберігаємо сесії, щоб не вилітало
 
 volumes:
   redis_data:

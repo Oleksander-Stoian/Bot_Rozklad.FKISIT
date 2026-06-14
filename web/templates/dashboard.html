@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Адмін-панель</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #f1f5f9; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans min-h-screen flex flex-col antialiased">
+
+    {% if needs_auth %}
+    <div class="flex-grow flex flex-col items-center justify-center bg-slate-900 text-white p-6">
+        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-500 mb-4"></div>
+        <h2 class="text-lg font-bold tracking-tight" id="auth-status-text">Безпечна авторизація Telegram...</h2>
+        <p class="text-slate-400 text-xs mt-2" id="auth-error-text">Перевірка ваших прав адміністратора у базі даних</p>
+    </div>
+
+    <script>
+        window.addEventListener('DOMContentLoaded', async () => {
+            // Отримуємо зашифровані дані від самого клієнта Telegram
+            const tg = window.Telegram.WebApp;
+            tg.expand(); // Розгортаємо вікно на повний екран
+            
+            const initData = tg.initData;
+            
+            if (!initData) {
+                document.getElementById('auth-status-text').innerText = "❌ Помилка доступу";
+                document.getElementById('auth-error-text').innerText = "Будь ласка, відкривайте цю панель тільки з вашого Telegram-бота!";
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/auth', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ initData: initData })
+                });
+                
+                const data = await response.json();
+                if (response.ok) {
+                    // Якщо успішно — оновлюємо сторінку і бекенд віддасть повноцінну адмінку
+                    window.location.reload();
+                } else {
+                    document.getElementById('auth-status-text').innerText = "🛑 Доступ обмежено";
+                    document.getElementById('auth-error-text').innerText = data.message || "У вас немає прав адміна.";
+                }
+            } catch (err) {
+                document.getElementById('auth-status-text').innerText = "❌ Помилка з'єднання";
+                document.getElementById('auth-error-text').innerText = "Не вдалося зв'язатися з сервером FastAPI.";
+            }
+        });
+    </script>
+
+    {% else %}
+    <nav class="bg-white border-b border-slate-200 sticky top-0 z-50 shadow-sm px-4 py-3 flex justify-between items-center">
+        <div class="flex items-center space-x-2">
+            <div class="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white"><i class="fa-solid fa-table-list text-xs"></i></div>
+            <span class="font-bold text-slate-900 tracking-tight text-sm">College Control Hub</span>
+        </div>
+        <div class="text-xs font-semibold bg-emerald-50 text-emerald-700 px-2.5 py-1 rounded-full border border-emerald-100">
+            🔒 Захищено Telegram
+        </div>
+    </nav>
+
+    <main class="flex-grow p-4 space-y-6 max-w-7xl mx-auto w-full">
+        
+        {% if alert %}
+        <div class="p-3.5 rounded-xl border text-sm flex items-start {% if alert.type == 'success' %} bg-emerald-50 border-emerald-200 text-emerald-800 {% else %} bg-rose-50 border-rose-200 text-rose-800 {% endif %} shadow-sm">
+            <i class="fa-solid {% if alert.type == 'success' %} fa-circle-check {% else %} fa-circle-xmark {% endif %} mt-0.5 mr-2.5 text-base"></i>
+            <div>{{ alert.text }}</div>
+        </div>
+        {% endif %}
+
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
+            <form action="/broadcast" method="post" class="space-y-3">
+                <div class="flex items-center space-x-2 text-slate-800 font-bold text-xs uppercase tracking-wider">
+                    <i class="fa-solid fa-bullhorn text-indigo-600"></i>
+                    <span>Глобальна розсилка (/broadcast на {{ users_count }} юзерів)</span>
+                </div>
+                <div class="flex space-x-2">
+                    <textarea name="text" rows="1" required placeholder="Текст оголошення усім студентам..." class="flex-grow bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-sm text-slate-800 focus:outline-none focus:border-indigo-500 focus:bg-white transition resize-none"></textarea>
+                    <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 rounded-xl font-semibold text-xs tracking-wide transition shadow-sm">
+                        Надіслати
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4 flex flex-col">
+            <div class="flex justify-between items-center mb-4">
+                <div>
+                    <h2 class="text-base font-bold text-slate-900 flex items-center"><i class="fa-solid fa-table text-indigo-600 mr-2"></i> Редактор бази пар</h2>
+                    <p class="text-slate-400 text-[10px] mt-0.5">Зміни зберігаються прямо в файл rozklad_pro.xlsx</p>
+                </div>
+                <div class="flex space-x-2">
+                    <button onclick="addRow()" class="py-2 px-3 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition">
+                        + Додати рядок
+                    </button>
+                    <button onclick="saveScheduleChanges()" class="py-2 px-4 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl transition shadow-md shadow-indigo-600/10">
+                        💾 Зберегти зміни
+                    </button>
+                </div>
+            </div>
+
+            <div class="overflow-x-auto custom-scrollbar border border-slate-200 rounded-xl max-h-[400px] overflow-y-auto">
+                <table class="w-full text-left border-collapse bg-white">
+                    <thead>
+                        <tr class="bg-slate-50 border-b border-slate-200 sticky top-0 z-10">
+                            {% for col in columns %}
+                            <th class="px-3 py-2 text-[11px] font-bold text-slate-500 uppercase tracking-wider bg-slate-50">{{ col }}</th>
+                            {% endfor %}
+                            <th class="px-3 py-2 text-[11px] font-bold text-slate-500 uppercase tracking-wider bg-slate-50 text-center w-12">Дії</th>
+                        </tr>
+                    </thead>
+                    <tbody id="schedule-table-body" class="divide-y divide-slate-100">
+                        {% for row in rows %}
+                        <tr class="hover:bg-slate-50/50 transition">
+                            {% for col in columns %}
+                            <td class="p-0.5">
+                                <input type="text" value="{{ row[col] }}" data-col="{{ col }}" class="w-full bg-transparent px-2 py-1.5 text-xs text-slate-800 rounded-lg border border-transparent focus:border-indigo-500 focus:bg-white focus:outline-none transition">
+                            </td>
+                            {% endfor %}
+                            <td class="p-0.5 text-center">
+                                <button onclick="deleteRow(this)" class="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg transition">
+                                    <i class="fa-solid fa-trash-can text-xs"></i>
+                                </button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+    
+    <script>
+        const columns = [{% for col in columns %}"{{ col }}",{% endfor %}];
+
+        function addRow() {
+            const tbody = document.getElementById('schedule-table-body');
+            const tr = document.createElement('tr');
+            tr.className = "hover:bg-slate-50/50 transition bg-indigo-50/20";
+
+            columns.forEach(col => {
+                const td = document.createElement('td');
+                td.className = "p-0.5";
+                td.innerHTML = `<input type="text" value="" data-col="${col}" class="w-full bg-transparent px-2 py-1.5 text-xs text-slate-800 rounded-lg border border-transparent focus:border-indigo-500 focus:bg-white focus:outline-none transition">`;
+                tr.appendChild(td);
+            });
+
+            const actionsTd = document.createElement('td');
+            actionsTd.className = "p-0.5 text-center";
+            actionsTd.innerHTML = `<button onclick="deleteRow(this)" class="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg transition"><i class="fa-solid fa-trash-can text-xs"></i></button>`;
+            tr.appendChild(actionsTd);
+            tbody.appendChild(tr);
+            tr.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+
+        function deleteRow(button) {
+            button.closest('tr').remove();
+        }
+
+        async function saveScheduleChanges() {
+            const rows = document.querySelectorAll('#schedule-table-body tr');
+            const payloadData = [];
+
+            rows.forEach(tr => {
+                const rowData = {};
+                let hasData = false;
+                columns.forEach(col => {
+                    const input = tr.querySelector(`input[data-col="${col}"]`);
+                    if (input) {
+                        const val = input.value.trim();
+                        rowData[col] = val;
+                        if(val !== "") hasData = true;
+                    }
+                });
+                if (hasData) payloadData.push(rowData);
+            });
+
+            if (payloadData.length === 0) {
+                alert('❌ Таблиця не може бути порожньою!');
+                return;
+            }
+
+            try {
+                const response = await fetch('/save-schedule', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ data: payloadData })
+                });
+
+                const result = await response.json();
+                if (response.ok) {
+                    alert('🎉 ' + result.message);
+                    window.location.reload();
+                } else {
+                    alert('❌ Помилка: ' + result.message);
+                }
+            } catch (err) {
+                alert('❌ Помилка з’єднання із FastAPI сервером.');
+            }
+        }
+    </script>
+    {% endif %}
+</body>
+</html>
