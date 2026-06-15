@@ -1,5 +1,4 @@
 import os
-import shutil
 import asyncio
 import json
 import time
@@ -34,6 +33,11 @@ IS_DOCKER = os.path.exists("/data")
 EXCEL_PATH = "/data/rozklad_pro.xlsx" if IS_DOCKER else os.path.join(BASE_DIR, "rozklad_pro.xlsx")
 
 COOKIE_NAME = "tg_webapp_session"
+
+# Запасні колонки, якщо Excel недоступний на момент відкриття панелі.
+# МАЮТЬ збігатися зі схемою rozklad_pro.xlsx, інакше Save запише структуру,
+# яку планувальник бота не зможе фільтрувати (зокрема без колонки "Час").
+DEFAULT_COLUMNS = ["Курс", "Група", "День", "Час", "Предмет", "Викладач", "Кабінет/Zoom", "Формат"]
 
 # Секрет для підпису сесійних токенів. BOT_TOKEN відомий лише серверу,
 # тож зловмисник не може підробити підпис без нього.
@@ -151,7 +155,7 @@ async def dashboard(request: Request):
             except Exception:
                 pass
         if not columns:
-            columns = ["Курс", "Група", "День", "Пара", "Предмет", "Викладач", "Аудиторія"]
+            columns = list(DEFAULT_COLUMNS)
 
         return templates.TemplateResponse("dashboard.html", {
             "request": request, 
@@ -205,7 +209,7 @@ async def web_broadcast(background_tasks: BackgroundTasks, request: Request, tex
         except Exception:
             pass
     if not columns:
-        columns = ["Курс", "Група", "День", "Пара", "Предмет", "Викладач", "Аудиторія"]
+        columns = list(DEFAULT_COLUMNS)
 
     if not text.strip():
         return templates.TemplateResponse("dashboard.html", {"request": request, "users_count": users_count, "columns": columns, "rows": rows, "needs_auth": False, "alert": {"type": "error", "text": "Текст оголошення не може бути пустим!"}})
