@@ -2,6 +2,7 @@ import os
 import shutil
 import asyncio
 import json
+import time
 import hmac
 import hashlib
 from urllib.parse import parse_qsl
@@ -34,6 +35,11 @@ EXCEL_PATH = "/data/rozklad_pro.xlsx" if IS_DOCKER else os.path.join(BASE_DIR, "
 
 COOKIE_NAME = "tg_webapp_session"
 
+# Секрет для підпису сесійних токенів. BOT_TOKEN відомий лише серверу,
+# тож зловмисник не може підробити підпис без нього.
+SESSION_SECRET = os.getenv("SESSION_SECRET") or BOT_TOKEN
+SESSION_TTL = 86400  # секунд
+
 class AuthPayload(BaseModel):
     initData: str
 
@@ -58,9 +64,40 @@ def verify_telegram_data(init_data: str, bot_token: str) -> dict:
         pass
     return None
 
+def _sign(payload: str) -> str:
+    """HMAC-SHA256 підпис рядка секретом сесії"""
+    return hmac.new(SESSION_SECRET.encode(), payload.encode(), hashlib.sha256).hexdigest()
+
+
+def create_session_token(user_id: int) -> str:
+    """Створює підписаний токен сесії формату '<user_id>.<issued_at>.<sig>'"""
+    payload = f"{user_id}.{int(time.time())}"
+    return f"{payload}.{_sign(payload)}"
+
+
 def check_session(request: Request) -> bool:
-    """Перевіряє, чи є у користувача активна сесія адміна"""
-    return request.cookies.get(COOKIE_NAME) == "active_admin"
+    """Перевіряє підписаний токен сесії: цілісність підпису, строк дії та права адміна.
+
+    Раніше тут була константа 'active_admin' — будь-хто міг підробити куку
+    й отримати доступ адміна без автентифікації. Тепер токен підписаний
+    BOT_TOKEN-ом, тож підробити його без секрету неможливо.
+    """
+    token = request.cookies.get(COOKIE_NAME)
+    if not token or not SESSION_SECRET:
+        return False
+    try:
+        user_id_str, issued_str, sig = token.split(".")
+        payload = f"{user_id_str}.{issued_str}"
+    except ValueError:
+        return False
+    if not hmac.compare_digest(_sign(payload), sig):
+        return False
+    try:
+        if int(issued_str) + SESSION_TTL < int(time.time()):
+            return False
+        return int(user_id_str) in ADMIN_IDS
+    except ValueError:
+        return False
 
 async def run_bg_broadcast(text: str, uids: list):
     """Фонова відправка розсилки з контролем спам-лімітів"""
@@ -85,7 +122,13 @@ async def api_auth(payload: AuthPayload):
         return JSONResponse(status_code=403, content={"status": "error", "message": f"Ваш Telegram ID ({user_id}) відсутній у списку ADMIN_IDS проєкту!"})
     
     response = JSONResponse(content={"status": "success"})
-    response.set_cookie(key=COOKIE_NAME, value="active_admin", httponly=True, max_age=86400)
+    response.set_cookie(
+        key=COOKIE_NAME,
+        value=create_session_token(user_id),
+        httponly=True,
+        samesite="lax",
+        max_age=SESSION_TTL,
+    )
     return response
 
 @app.get("/", response_class=HTMLResponse)
