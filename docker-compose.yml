@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   bot:
     build: .
@@ -21,7 +19,9 @@ services:
     env_file:
       - .env
     ports:
-      - "8000:8000"
+      # Лише localhost: назовні панель доступна тільки через HTTPS-проксі (NPM),
+      # а NPM ходить до контейнера через docker-мережу, не через цей порт.
+      - "127.0.0.1:8000:8000"
     depends_on:
       - redis
     environment:
@@ -34,7 +34,9 @@ services:
     container_name: redis_bot
     restart: always
     ports:
-      - "6379:6379"
+      # Лише localhost — Redis без пароля не має стирчати в інтернет.
+      # Бот спілкується з ним через docker-мережу (REDIS_HOST=redis).
+      - "127.0.0.1:6379:6379"
     volumes:
       - redis_data:/data
     command: redis-server --save 60 1 # Зберігаємо сесії, щоб не вилітало
