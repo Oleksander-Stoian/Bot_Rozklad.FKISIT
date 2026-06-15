@@ -25,6 +25,14 @@ BOT_TOKEN = os.getenv("BOT_TOKEN", "")
 admin_ids_str = os.getenv("ADMIN_IDS", "")
 ADMIN_IDS = [int(uid.strip()) for uid in admin_ids_str.split(",") if uid.strip().isdigit()]
 
+# Облікові дані для входу через браузер (поряд із Telegram Mini App).
+# ADMIN_PASS_HASH (sha256-hex) має пріоритет; якщо його нема — береться ADMIN_PASS.
+# Якщо не задано ні те, ні те — парольний вхід вимкнено.
+ADMIN_USER = os.getenv("ADMIN_USER", "admin")
+ADMIN_PASS = os.getenv("ADMIN_PASS", "")
+ADMIN_PASS_HASH = os.getenv("ADMIN_PASS_HASH", "")
+WEB_ADMIN_SUBJECT = "webadmin"  # суб'єкт сесії для парольного входу (не Telegram ID)
+
 r = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, decode_responses=True)
 bot_client = Bot(token=BOT_TOKEN) if BOT_TOKEN else None
 
@@ -99,9 +107,28 @@ def check_session(request: Request) -> bool:
     try:
         if int(issued_str) + SESSION_TTL < int(time.time()):
             return False
+    except ValueError:
+        return False
+    # Парольний вхід через браузер
+    if user_id_str == WEB_ADMIN_SUBJECT:
+        return True
+    # Telegram Mini App: суб'єкт — це Telegram ID, що має бути серед адмінів
+    try:
         return int(user_id_str) in ADMIN_IDS
     except ValueError:
         return False
+
+
+def verify_password(username: str, password: str) -> bool:
+    """Перевіряє логін/пароль браузерного входу (порівняння у сталий час)."""
+    if not hmac.compare_digest(username, ADMIN_USER):
+        return False
+    if ADMIN_PASS_HASH:
+        digest = hashlib.sha256(password.encode()).hexdigest()
+        return hmac.compare_digest(digest, ADMIN_PASS_HASH.strip().lower())
+    if ADMIN_PASS:
+        return hmac.compare_digest(password, ADMIN_PASS)
+    return False  # пароль не налаштовано → вхід через браузер вимкнено
 
 async def run_bg_broadcast(text: str, uids: list):
     """Фонова відправка розсилки з контролем спам-лімітів"""
@@ -133,6 +160,39 @@ async def api_auth(payload: AuthPayload):
         samesite="lax",
         max_age=SESSION_TTL,
     )
+    return response
+
+@app.get("/login", response_class=HTMLResponse)
+async def login_page(request: Request):
+    """Сторінка входу логін/пароль (для браузера, без Telegram)."""
+    if check_session(request):
+        return RedirectResponse(url="/", status_code=303)
+    return templates.TemplateResponse(request, "login.html", {"request": request, "error": None})
+
+@app.post("/login")
+async def login_submit(request: Request, username: str = Form(...), password: str = Form(...)):
+    """Перевіряє облікові дані та видає підписану сесію (той самий механізм, що й Telegram)."""
+    if not verify_password(username, password):
+        return templates.TemplateResponse(
+            request, "login.html",
+            {"request": request, "error": "Невірний логін або пароль!"},
+            status_code=401,
+        )
+    response = RedirectResponse(url="/", status_code=303)
+    response.set_cookie(
+        key=COOKIE_NAME,
+        value=create_session_token(WEB_ADMIN_SUBJECT),
+        httponly=True,
+        samesite="lax",
+        max_age=SESSION_TTL,
+    )
+    return response
+
+@app.get("/logout")
+async def logout():
+    """Вихід: гасить сесійну куку."""
+    response = RedirectResponse(url="/login", status_code=303)
+    response.delete_cookie(COOKIE_NAME)
     return response
 
 @app.get("/", response_class=HTMLResponse)
