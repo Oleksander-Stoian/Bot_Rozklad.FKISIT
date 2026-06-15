@@ -157,7 +157,7 @@ async def dashboard(request: Request):
         if not columns:
             columns = list(DEFAULT_COLUMNS)
 
-        return templates.TemplateResponse("dashboard.html", {
+        return templates.TemplateResponse(request, "dashboard.html", {
             "request": request, 
             "users_count": users_count, 
             "columns": columns, 
@@ -166,7 +166,7 @@ async def dashboard(request: Request):
             "alert": None
         })
     
-    return templates.TemplateResponse("dashboard.html", {
+    return templates.TemplateResponse(request, "dashboard.html", {
         "request": request,
         "needs_auth": True,
         "users_count": 0,
@@ -212,7 +212,7 @@ async def web_broadcast(background_tasks: BackgroundTasks, request: Request, tex
         columns = list(DEFAULT_COLUMNS)
 
     if not text.strip():
-        return templates.TemplateResponse("dashboard.html", {"request": request, "users_count": users_count, "columns": columns, "rows": rows, "needs_auth": False, "alert": {"type": "error", "text": "Текст оголошення не може бути пустим!"}})
+        return templates.TemplateResponse(request, "dashboard.html", {"request": request, "users_count": users_count, "columns": columns, "rows": rows, "needs_auth": False, "alert": {"type": "error", "text": "Текст оголошення не може бути пустим!"}})
     
     uids = []
     for key in r.scan_iter("user:*:role"):
@@ -221,10 +221,10 @@ async def web_broadcast(background_tasks: BackgroundTasks, request: Request, tex
             uids.append(parts[1])
             
     if not uids:
-        return templates.TemplateResponse("dashboard.html", {"request": request, "users_count": users_count, "columns": columns, "rows": rows, "needs_auth": False, "alert": {"type": "error", "text": "Немає активних юзерів у базі!"}})
+        return templates.TemplateResponse(request, "dashboard.html", {"request": request, "users_count": users_count, "columns": columns, "rows": rows, "needs_auth": False, "alert": {"type": "error", "text": "Немає активних юзерів у базі!"}})
 
     background_tasks.add_task(run_bg_broadcast, text, uids)
-    return templates.TemplateResponse("dashboard.html", {
+    return templates.TemplateResponse(request, "dashboard.html", {
         "request": request, 
         "users_count": users_count, 
         "columns": columns, 
