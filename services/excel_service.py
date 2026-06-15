@@ -1,28 +1,37 @@
 import logging
 import pandas as pd
-from functools import lru_cache
 from config import FILE_NAME
 
 logger = logging.getLogger(__name__)
 
-@lru_cache(maxsize=1)
+# Ручний кеш замість lru_cache: кешуємо лише успішне читання.
+# Інакше невдала спроба (файл зайнятий під час запису з веб-панелі)
+# закешувала б порожній DataFrame до наступного /reload_schedule.
+_schedule_cache = None
+
 def load_schedule():
-    try: 
+    global _schedule_cache
+    if _schedule_cache is not None:
+        return _schedule_cache
+    try:
         # Зчитуємо файл як текст (dtype=str)
         df = pd.read_excel(FILE_NAME, dtype=str)
-        
+
         # --- ФІКС ЧАСУ ---
         # Якщо в колонці "Час" є щось типу "11:45:00", ми беремо тільки перші 5 символів ("11:45")
         if 'Час' in df.columns:
             df['Час'] = df['Час'].astype(str).apply(lambda x: x[:5] if len(x) >= 5 else x)
         # -----------------
-        
+
+        _schedule_cache = df
         return df
     except Exception as e:
         logger.error(f"Помилка при завантаженні розкладу: {e}")
-        return pd.DataFrame()
+        return pd.DataFrame()  # не кешуємо, щоб наступний виклик повторив спробу
 
-def clear_cache(): load_schedule.cache_clear()
+def clear_cache():
+    global _schedule_cache
+    _schedule_cache = None
 
 def get_all_teachers():
     df = load_schedule()
