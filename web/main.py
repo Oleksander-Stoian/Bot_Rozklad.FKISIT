@@ -3,6 +3,7 @@ import asyncio
 import json
 import time
 import hmac
+import html
 import hashlib
 from urllib.parse import parse_qsl
 import redis
@@ -251,12 +252,15 @@ async def run_bg_broadcast(text: str, uids: list):
     """Фонова відправка розсилки; зберігає підсумок у Redis для відображення в панелі."""
     if not bot_client:
         return
+    # Екрануємо текст: parse_mode=HTML інакше зламається на '<', '&' чи незакритих
+    # тегах в оголошенні — і повідомлення тихо не дійде ДО ВСІХ одержувачів.
+    safe_text = html.escape(text)
     delivered = failed = 0
     for uid in uids:
         try:
             await bot_client.send_message(
                 chat_id=int(uid),
-                text=f"📢 <b>ОГОЛОШЕННЯ:</b>\n\n{text}",
+                text=f"📢 <b>ОГОЛОШЕННЯ:</b>\n\n{safe_text}",
                 parse_mode="HTML",
             )
             delivered += 1

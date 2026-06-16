@@ -1,5 +1,6 @@
 import os
 import asyncio
+import html
 from aiogram import Router, types
 from aiogram.filters import Command
 from config import ADMIN_IDS
@@ -59,7 +60,7 @@ async def broadcast(msg: types.Message):
         if len(parts) >= 2:
             uid = parts[1]
             try:
-                await bot.send_message(chat_id=int(uid), text=f"📢 <b>ОГОЛОШЕННЯ:</b>\n\n{text}", parse_mode="HTML")
+                await bot.send_message(chat_id=int(uid), text=f"📢 <b>ОГОЛОШЕННЯ:</b>\n\n{html.escape(text)}", parse_mode="HTML")
                 success_count += 1
                 await asyncio.sleep(0.05)  # Anti-flood затримка для стабільності Telegram API
             except Exception:
