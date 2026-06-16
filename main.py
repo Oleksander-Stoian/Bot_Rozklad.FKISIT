@@ -6,6 +6,22 @@ from core.bot import bot, dp
 from core.scheduler import scheduler
 from handlers import start, student, teacher, schedule, bells, admin
 from config import REDIS_HOST, REDIS_PORT
+from services.excel_service import clear_cache
+from services.redis_service import consume_schedule_reload
+
+
+async def schedule_watcher():
+    """Опитує прапорець schedule:reload (його ставить веб-панель після збереження)
+    і скидає кеш розкладу — щоб зміни застосовувались без ручного /reload_schedule."""
+    while True:
+        try:
+            if await consume_schedule_reload():
+                clear_cache()
+                logging.info("Розклад оновлено з веб-панелі — кеш очищено.")
+        except Exception as e:
+            logging.warning(f"schedule_watcher: {e}")
+        await asyncio.sleep(5)
+
 
 async def main():
     logging.basicConfig(level=logging.INFO, stream=sys.stdout)
@@ -40,6 +56,7 @@ async def main():
     )
     
     asyncio.create_task(scheduler())
+    asyncio.create_task(schedule_watcher())
     await dp.start_polling(bot)
 
 if __name__ == "__main__":
