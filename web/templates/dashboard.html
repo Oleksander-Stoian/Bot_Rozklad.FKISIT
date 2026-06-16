@@ -3,39 +3,150 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Адмін-панель</title>
+    <title>Розклад · Адмін-панель FKISIT</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        paper:   '#F6F4EE',
+                        surface: '#FCFBF8',
+                        ink:     '#1B1A17',
+                        muted:   '#6B6862',
+                        line:    '#E4E0D6',
+                        pine:    { DEFAULT: '#1F5C46', dark: '#17463A', deep: '#163D2F', soft: '#E7EFEA' },
+                        clay:    '#B23A2E',
+                    },
+                    fontFamily: {
+                        display: ['Fraunces', 'Georgia', 'serif'],
+                        sans:    ['"Hanken Grotesk"', 'system-ui', 'sans-serif'],
+                        mono:    ['"JetBrains Mono"', 'ui-monospace', 'monospace'],
+                    },
+                }
+            }
+        }
+    </script>
     <style>
-        .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: #f1f5f9; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Hanken+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+        :root { color-scheme: light; }
+        body { font-family: 'Hanken Grotesk', system-ui, sans-serif; }
+
+        .custom-scrollbar::-webkit-scrollbar { width: 8px; height: 8px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #D6D1C4; border-radius: 8px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #BFB9A8; }
+
+        .grid-paper {
+            background-image:
+                linear-gradient(to right, rgba(255,255,255,0.07) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(255,255,255,0.07) 1px, transparent 1px);
+            background-size: 56px 44px;
+        }
+
+        .reveal { opacity: 0; transform: translateY(10px); animation: reveal .65s cubic-bezier(.2,.7,.2,1) forwards; }
+        .d1 { animation-delay: .04s } .d2 { animation-delay: .12s } .d3 { animation-delay: .2s } .d4 { animation-delay: .28s }
+        @keyframes reveal { to { opacity: 1; transform: none; } }
+
+        .pulse-bar span {
+            display: inline-block; width: 3px; height: 18px; background: #1F5C46; border-radius: 2px;
+            animation: pulse 1s ease-in-out infinite;
+        }
+        .pulse-bar span:nth-child(2) { animation-delay: .12s } .pulse-bar span:nth-child(3) { animation-delay: .24s }
+        .pulse-bar span:nth-child(4) { animation-delay: .36s } .pulse-bar span:nth-child(5) { animation-delay: .48s }
+        @keyframes pulse { 0%,100% { transform: scaleY(.4); opacity: .35 } 50% { transform: scaleY(1); opacity: 1 } }
+
+        /* Поля редактора (input + select однакові на вигляд) */
+        .cell {
+            width: 100%; background: transparent; font-family: 'JetBrains Mono', monospace; font-size: 13px;
+            color: #1B1A17; padding: 8px 10px; border-radius: 6px; border: 1px solid transparent;
+            transition: border-color .15s ease, background-color .15s ease;
+        }
+        .cell:hover { border-color: rgba(228,224,214,.8); }
+        .cell:focus { border-color: #1F5C46; background: #fff; outline: none; }
+        select.cell {
+            appearance: none; -webkit-appearance: none; padding-right: 26px; cursor: pointer;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236B6862' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+            background-repeat: no-repeat; background-position: right 8px center;
+        }
+
+        /* Контрольні селекти (фільтри / таргет розсилки) */
+        .control {
+            appearance: none; -webkit-appearance: none; cursor: pointer;
+            background-color: #fff; border: 1px solid #E4E0D6; border-radius: 8px;
+            padding: 8px 30px 8px 12px; font-size: 14px; color: #1B1A17;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236B6862' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+            background-repeat: no-repeat; background-position: right 10px center;
+            transition: border-color .15s ease, box-shadow .15s ease;
+        }
+        .control:focus { outline: none; border-color: #1F5C46; box-shadow: 0 0 0 3px rgba(31,92,70,.1); }
+
+        /* Тости */
+        #toasts { position: fixed; right: 18px; bottom: 18px; z-index: 80; display: flex; flex-direction: column; gap: 10px; }
+        .toast {
+            display: flex; align-items: flex-start; gap: 10px; max-width: 340px;
+            background: #fff; border: 1px solid #E4E0D6; border-left-width: 3px; border-radius: 10px;
+            padding: 12px 14px; font-size: 14px; color: #1B1A17;
+            box-shadow: 0 8px 24px -10px rgba(22,61,47,.25);
+            opacity: 0; transform: translateY(8px); transition: opacity .25s ease, transform .25s ease;
+        }
+        .toast.show { opacity: 1; transform: none; }
+        .toast.success { border-left-color: #1F5C46; }
+        .toast.error { border-left-color: #B23A2E; }
+
+        @media (prefers-reduced-motion: reduce) {
+            .reveal, .pulse-bar span { animation: none; opacity: 1; transform: none; }
+            * { transition: none !important; }
+        }
     </style>
 </head>
-<body class="bg-slate-50 text-slate-800 font-sans min-h-screen flex flex-col antialiased">
+<body class="bg-paper text-ink antialiased min-h-screen flex flex-col">
 
     {% if needs_auth %}
-    <div class="flex-grow flex flex-col items-center justify-center bg-slate-900 text-white p-6">
-        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-500 mb-4"></div>
-        <h2 class="text-lg font-bold tracking-tight" id="auth-status-text">Безпечна авторизація Telegram...</h2>
-        <p class="text-slate-400 text-xs mt-2" id="auth-error-text">Перевірка ваших прав адміністратора у базі даних</p>
-        <a href="/login" class="mt-6 inline-flex items-center text-xs text-indigo-400 hover:text-indigo-300 underline">
-            <i class="fa-solid fa-right-to-bracket mr-1.5"></i> Вхід для менеджера (логін і пароль)
-        </a>
-    </div>
+    <!-- ===== TELEGRAM AUTH (Mini App) ===== -->
+    <main class="flex-grow grid lg:grid-cols-2">
+        <section class="relative hidden lg:flex flex-col justify-between overflow-hidden p-14" style="background-color:#163D2F">
+            <div class="absolute inset-0 grid-paper opacity-60"></div>
+            <div class="relative flex items-center gap-3 text-[#E7EFEA]">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/></svg>
+                <span class="font-mono text-[11px] tracking-[0.32em] uppercase">FKISIT · Admin</span>
+            </div>
+            <div class="relative">
+                <p class="font-mono text-[11px] tracking-[0.3em] uppercase text-[#9CC3B2] mb-5">Захищений вхід</p>
+                <h1 class="font-display text-[#F6F4EE] text-6xl leading-[0.95]" style="font-weight:500">Розклад<br><span class="italic text-[#Bfd8cd]" style="font-weight:400">коледжу</span></h1>
+            </div>
+            <div class="relative font-mono text-[11px] tracking-[0.25em] uppercase text-[#6f9685]">Telegram · Mini App</div>
+        </section>
+
+        <section class="flex items-center justify-center px-6 py-16">
+            <div class="w-full max-w-sm text-center lg:text-left">
+                <div class="pulse-bar flex items-end gap-1.5 justify-center lg:justify-start h-6 mb-7">
+                    <span></span><span></span><span></span><span></span><span></span>
+                </div>
+                <p class="font-mono text-[11px] tracking-[0.3em] uppercase text-muted mb-3">Авторизація</p>
+                <h2 id="auth-status-text" class="font-display text-3xl leading-tight" style="font-weight:500">Безпечна перевірка Telegram…</h2>
+                <p id="auth-error-text" class="text-muted text-[15px] mt-3 leading-relaxed">Перевіряємо ваші права адміністратора у базі даних.</p>
+
+                <a href="/login" class="group inline-flex items-center gap-2 mt-9 text-sm font-medium text-pine hover:text-pine-dark transition-colors">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4M10 17l5-5-5-5M15 12H3"/></svg>
+                    Вхід для менеджера (логін і пароль)
+                </a>
+            </div>
+        </section>
+    </main>
 
     <script>
         window.addEventListener('DOMContentLoaded', async () => {
-            // Отримуємо зашифровані дані від самого клієнта Telegram
             const tg = window.Telegram.WebApp;
-            tg.expand(); // Розгортаємо вікно на повний екран
-            
+            tg.expand();
             const initData = tg.initData;
-            
+
             if (!initData) {
-                document.getElementById('auth-status-text').innerText = "❌ Помилка доступу";
-                document.getElementById('auth-error-text').innerText = "Будь ласка, відкривайте цю панель тільки з вашого Telegram-бота!";
+                document.getElementById('auth-status-text').innerText = "Помилка доступу";
+                document.getElementById('auth-error-text').innerText = "Відкривайте панель лише з вашого Telegram-бота через команду /admin.";
+                document.querySelector('.pulse-bar').style.display = 'none';
                 return;
             }
 
@@ -45,177 +156,430 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ initData: initData })
                 });
-                
                 const data = await response.json();
                 if (response.ok) {
-                    // Якщо успішно — оновлюємо сторінку і бекенд віддасть повноцінну адмінку
                     window.location.reload();
                 } else {
-                    document.getElementById('auth-status-text').innerText = "🛑 Доступ обмежено";
+                    document.getElementById('auth-status-text').innerText = "Доступ обмежено";
                     document.getElementById('auth-error-text').innerText = data.message || "У вас немає прав адміна.";
+                    document.querySelector('.pulse-bar').style.display = 'none';
                 }
             } catch (err) {
-                document.getElementById('auth-status-text').innerText = "❌ Помилка з'єднання";
-                document.getElementById('auth-error-text').innerText = "Не вдалося зв'язатися з сервером FastAPI.";
+                document.getElementById('auth-status-text').innerText = "Помилка з'єднання";
+                document.getElementById('auth-error-text').innerText = "Не вдалося зв'язатися із сервером.";
+                document.querySelector('.pulse-bar').style.display = 'none';
             }
         });
     </script>
 
     {% else %}
-    <nav class="bg-white border-b border-slate-200 sticky top-0 z-50 shadow-sm px-4 py-3 flex justify-between items-center">
-        <div class="flex items-center space-x-2">
-            <div class="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white"><i class="fa-solid fa-table-list text-xs"></i></div>
-            <span class="font-bold text-slate-900 tracking-tight text-sm">College Control Hub</span>
-        </div>
-        <div class="flex items-center space-x-2">
-            <div class="text-xs font-semibold bg-emerald-50 text-emerald-700 px-2.5 py-1 rounded-full border border-emerald-100">
-                🔒 Захищено
+    <!-- ===== АДМІН-ПАНЕЛЬ ===== -->
+    <header class="sticky top-0 z-50 bg-paper/85 backdrop-blur-md border-b border-line">
+        <div class="max-w-6xl mx-auto px-5 sm:px-8 h-16 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-9 h-9 rounded-md bg-pine text-[#F6F4EE] flex items-center justify-center">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/></svg>
+                </div>
+                <div class="leading-none">
+                    <div class="font-display text-lg" style="font-weight:600">Розклад</div>
+                    <div class="font-mono text-[10px] tracking-[0.22em] uppercase text-muted mt-1">FKISIT · Admin</div>
+                </div>
             </div>
-            <a href="/logout" class="text-xs font-semibold text-slate-500 hover:text-rose-600 px-2.5 py-1 rounded-full border border-slate-200 hover:border-rose-200 transition">
-                <i class="fa-solid fa-arrow-right-from-bracket mr-1"></i> Вихід
-            </a>
+            <div class="flex items-center gap-2.5">
+                <span class="hidden sm:inline-flex items-center gap-1.5 font-mono text-[10px] tracking-[0.14em] uppercase text-pine bg-pine-soft border border-pine/15 px-2.5 py-1.5 rounded-full">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                    Захищено
+                </span>
+                <a href="/logout" class="group inline-flex items-center gap-1.5 text-sm font-medium text-muted hover:text-clay border border-line hover:border-clay/30 px-3 py-1.5 rounded-md transition-colors cursor-pointer">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg>
+                    Вихід
+                </a>
+            </div>
         </div>
-    </nav>
+    </header>
 
-    <main class="flex-grow p-4 space-y-6 max-w-7xl mx-auto w-full">
-        
+    <main class="flex-grow w-full max-w-6xl mx-auto px-5 sm:px-8 py-10 sm:py-14">
+
+        <!-- Заголовок -->
+        <div class="reveal d1 mb-8">
+            <p class="font-mono text-[11px] tracking-[0.3em] uppercase text-muted mb-3">Панель керування</p>
+            <h1 class="font-display text-4xl sm:text-5xl leading-[1.05]" style="font-weight:500">
+                Керування <span class="italic text-pine">розкладом</span>
+            </h1>
+        </div>
+
+        <!-- Рядок стану -->
+        <div class="reveal d1 mb-10 grid grid-cols-2 sm:grid-cols-4 border border-line rounded-xl overflow-hidden bg-surface">
+            {% set stat_items = [
+                {'label': 'Користувачів', 'value': stats.total},
+                {'label': 'Студентів', 'value': stats.students},
+                {'label': 'Викладачів', 'value': stats.teachers},
+                {'label': 'Груп', 'value': stats.groups}
+            ] %}
+            {% for s in stat_items %}
+            <div class="px-5 py-4 border-line {% if not loop.first %} border-l {% endif %} {% if loop.index0 >= 2 %} border-t sm:border-t-0 {% endif %} {% if loop.index == 3 %} border-l-0 sm:border-l {% endif %}">
+                <div class="font-display leading-none" style="font-weight:600; font-size:30px">{{ s.value }}</div>
+                <div class="font-mono text-[10px] tracking-[0.16em] uppercase text-muted mt-2">{{ s.label }}</div>
+            </div>
+            {% endfor %}
+        </div>
+
         {% if alert %}
-        <div class="p-3.5 rounded-xl border text-sm flex items-start {% if alert.type == 'success' %} bg-emerald-50 border-emerald-200 text-emerald-800 {% else %} bg-rose-50 border-rose-200 text-rose-800 {% endif %} shadow-sm">
-            <i class="fa-solid {% if alert.type == 'success' %} fa-circle-check {% else %} fa-circle-xmark {% endif %} mt-0.5 mr-2.5 text-base"></i>
-            <div>{{ alert.text }}</div>
+        <div class="reveal mb-8 flex items-start gap-3 rounded-lg px-4 py-3.5 text-sm border
+            {% if alert.type == 'success' %} border-pine/25 bg-pine-soft text-pine-dark {% else %} border-clay/30 bg-clay/[0.06] text-clay {% endif %}" role="status">
+            {% if alert.type == 'success' %}
+            <svg class="mt-0.5 shrink-0" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+            {% else %}
+            <svg class="mt-0.5 shrink-0" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/></svg>
+            {% endif %}
+            <span>{{ alert.text }}</span>
         </div>
         {% endif %}
 
-        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
-            <form action="/broadcast" method="post" class="space-y-3">
-                <div class="flex items-center space-x-2 text-slate-800 font-bold text-xs uppercase tracking-wider">
-                    <i class="fa-solid fa-bullhorn text-indigo-600"></i>
-                    <span>Глобальна розсилка (/broadcast на {{ users_count }} юзерів)</span>
-                </div>
-                <div class="flex space-x-2">
-                    <textarea name="text" rows="1" required placeholder="Текст оголошення усім студентам..." class="flex-grow bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-sm text-slate-800 focus:outline-none focus:border-indigo-500 focus:bg-white transition resize-none"></textarea>
-                    <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 rounded-xl font-semibold text-xs tracking-wide transition shadow-sm">
-                        Надіслати
-                    </button>
-                </div>
-            </form>
-        </div>
-
-        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4 flex flex-col">
-            <div class="flex justify-between items-center mb-4">
-                <div>
-                    <h2 class="text-base font-bold text-slate-900 flex items-center"><i class="fa-solid fa-table text-indigo-600 mr-2"></i> Редактор бази пар</h2>
-                    <p class="text-slate-400 text-[10px] mt-0.5">Зміни зберігаються прямо в файл rozklad_pro.xlsx</p>
-                </div>
-                <div class="flex space-x-2">
-                    <button onclick="addRow()" class="py-2 px-3 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition">
-                        + Додати рядок
-                    </button>
-                    <button onclick="saveScheduleChanges()" class="py-2 px-4 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl transition shadow-md shadow-indigo-600/10">
-                        💾 Зберегти зміни
-                    </button>
-                </div>
+        <!-- 01 — РОЗСИЛКА -->
+        <section class="reveal d2 mb-12">
+            <div class="flex items-baseline gap-3 mb-4">
+                <span class="font-mono text-[12px] text-pine" style="font-weight:600">01</span>
+                <h2 class="font-display text-xl" style="font-weight:600">Розсилка оголошень</h2>
+                {% if last_broadcast %}
+                <span class="font-mono text-[11px] text-muted ml-auto tracking-wide hidden sm:block">
+                    остання: доставлено {{ last_broadcast.delivered }} з {{ last_broadcast.total }}
+                </span>
+                {% endif %}
             </div>
 
-            <div class="overflow-x-auto custom-scrollbar border border-slate-200 rounded-xl max-h-[400px] overflow-y-auto">
-                <table class="w-full text-left border-collapse bg-white">
-                    <thead>
-                        <tr class="bg-slate-50 border-b border-slate-200 sticky top-0 z-10">
-                            {% for col in columns %}
-                            <th class="px-3 py-2 text-[11px] font-bold text-slate-500 uppercase tracking-wider bg-slate-50">{{ col }}</th>
-                            {% endfor %}
-                            <th class="px-3 py-2 text-[11px] font-bold text-slate-500 uppercase tracking-wider bg-slate-50 text-center w-12">Дії</th>
-                        </tr>
-                    </thead>
-                    <tbody id="schedule-table-body" class="divide-y divide-slate-100">
-                        {% for row in rows %}
-                        <tr class="hover:bg-slate-50/50 transition">
-                            {% for col in columns %}
-                            <td class="p-0.5">
-                                <input type="text" value="{{ row[col] }}" data-col="{{ col }}" class="w-full bg-transparent px-2 py-1.5 text-xs text-slate-800 rounded-lg border border-transparent focus:border-indigo-500 focus:bg-white focus:outline-none transition">
-                            </td>
-                            {% endfor %}
-                            <td class="p-0.5 text-center">
-                                <button onclick="deleteRow(this)" class="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg transition">
-                                    <i class="fa-solid fa-trash-can text-xs"></i>
-                                </button>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+            <div class="bg-surface border border-line rounded-xl p-5">
+                <form id="bcForm" action="/broadcast" method="post" class="space-y-4">
+                    <div class="flex flex-col sm:flex-row sm:items-center gap-3">
+                        <label class="font-mono text-[11px] tracking-[0.16em] uppercase text-muted shrink-0">Кому</label>
+                        <select id="bcTarget" name="target" aria-label="Кому надіслати" class="control w-full sm:w-auto sm:min-w-[260px]">
+                            <option value="all">Усі користувачі</option>
+                            {% if meta.courses %}
+                            <optgroup label="За курсом">
+                                {% for c in meta.courses %}<option value="course:{{ c }}">{{ c }} курс</option>{% endfor %}
+                            </optgroup>
+                            {% endif %}
+                            <optgroup label="За роллю">
+                                <option value="role:student">Лише студенти</option>
+                                <option value="role:teacher">Лише викладачі</option>
+                            </optgroup>
+                            {% if meta.groups %}
+                            <optgroup label="За групою">
+                                {% for g in meta.groups %}<option value="group:{{ g }}">{{ g }}</option>{% endfor %}
+                            </optgroup>
+                            {% endif %}
+                        </select>
+                        <span id="bcCount" class="font-mono text-[12px] text-pine bg-pine-soft border border-pine/15 px-3 py-1.5 rounded-full sm:ml-auto whitespace-nowrap">— одержувачів</span>
+                    </div>
+
+                    <textarea id="bcText" name="text" rows="3" required maxlength="3500" placeholder="Текст оголошення…"
+                              class="w-full bg-paper/60 border border-line rounded-lg p-3.5 text-[15px] text-ink placeholder-muted/60 focus:outline-none focus:border-pine focus:bg-white transition-colors duration-150 resize-none"></textarea>
+
+                    <div class="flex items-center justify-between">
+                        <span id="bcChars" class="font-mono text-[11px] text-muted/70 tracking-wide">0 / 3500</span>
+                        <button type="button" id="bcSend"
+                                class="group inline-flex items-center gap-2 bg-pine hover:bg-pine-dark text-[#F6F4EE] text-sm font-semibold px-5 py-2.5 rounded-lg cursor-pointer transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-pine/40 focus-visible:ring-offset-2 focus-visible:ring-offset-paper">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+                            Надіслати
+                        </button>
+                    </div>
+
+                    <!-- Крок підтвердження -->
+                    <div id="bcConfirm" class="hidden items-center justify-between gap-3 flex-col sm:flex-row border-t border-line pt-4">
+                        <p class="text-sm text-ink">Надіслати повідомлення <span id="bcConfirmCount" class="font-semibold text-pine">—</span>? Дію не можна скасувати.</p>
+                        <div class="flex items-center gap-2 shrink-0">
+                            <button type="button" id="bcCancel" class="text-sm font-medium text-muted hover:text-ink border border-line px-4 py-2 rounded-lg cursor-pointer transition-colors">Скасувати</button>
+                            <button type="submit" class="inline-flex items-center gap-2 bg-pine hover:bg-pine-dark text-[#F6F4EE] text-sm font-semibold px-4 py-2 rounded-lg cursor-pointer transition-colors">
+                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+                                Підтвердити
+                            </button>
+                        </div>
+                    </div>
+                </form>
             </div>
-        </div>
+        </section>
+
+        <!-- 02 — РОЗКЛАД -->
+        <section class="reveal d3">
+            <div class="flex items-baseline gap-3 mb-4">
+                <span class="font-mono text-[12px] text-pine" style="font-weight:600">02</span>
+                <h2 class="font-display text-xl" style="font-weight:600">Редактор розкладу</h2>
+                <span id="schedDirty" class="hidden font-mono text-[10px] tracking-[0.12em] uppercase text-clay bg-clay/[0.06] border border-clay/25 px-2.5 py-1 rounded-full">Незбережено</span>
+                <span class="font-mono text-[11px] text-muted ml-auto tracking-wide hidden sm:block">rozklad_pro.xlsx</span>
+            </div>
+
+            <div class="bg-surface border border-line rounded-xl overflow-hidden">
+                <!-- Фільтри -->
+                <div class="flex flex-wrap items-center gap-2.5 px-4 py-3 border-b border-line bg-paper/40">
+                    <select id="fCourse" aria-label="Фільтр за курсом" class="control"><option value="">Усі курси</option>
+                        {% for c in meta.courses %}<option value="{{ c }}">{{ c }} курс</option>{% endfor %}
+                    </select>
+                    <select id="fGroup" aria-label="Фільтр за групою" class="control"><option value="">Усі групи</option>
+                        {% for g in meta.groups %}<option value="{{ g }}">{{ g }}</option>{% endfor %}
+                    </select>
+                    <select id="fDay" aria-label="Фільтр за днем" class="control"><option value="">Усі дні</option>
+                        {% for d in meta.day_options %}<option value="{{ d }}">{{ d }}</option>{% endfor %}
+                    </select>
+                    <div class="relative flex-grow min-w-[140px]">
+                        <svg class="absolute left-3 top-1/2 -translate-y-1/2 text-muted" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+                        <input id="fSearch" type="text" aria-label="Пошук у розкладі" placeholder="Пошук: предмет, викладач, кабінет…"
+                               class="w-full bg-white border border-line rounded-lg pl-9 pr-3 py-2 text-sm text-ink placeholder-muted/60 focus:outline-none focus:border-pine transition-colors">
+                    </div>
+                    <button id="fReset" class="text-sm font-medium text-muted hover:text-ink px-3 py-2 rounded-lg cursor-pointer transition-colors">Скинути</button>
+                </div>
+
+                <!-- Дії -->
+                <div class="flex items-center justify-between gap-2 px-4 py-3 border-b border-line">
+                    <span id="schedShown" class="font-mono text-[11px] text-muted tracking-wide">показано — з —</span>
+                    <div class="flex items-center gap-2">
+                        <button id="schedAdd"
+                                class="inline-flex items-center gap-1.5 text-sm font-medium text-ink bg-white border border-line hover:border-pine/40 hover:text-pine px-3.5 py-2 rounded-lg cursor-pointer transition-colors duration-150">
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+                            Додати рядок
+                        </button>
+                        <button id="schedSave"
+                                class="inline-flex items-center gap-1.5 text-sm font-semibold text-[#F6F4EE] bg-pine hover:bg-pine-dark px-4 py-2 rounded-lg cursor-pointer transition-colors duration-200">
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8M7 3v5h8"/></svg>
+                            Зберегти
+                        </button>
+                    </div>
+                </div>
+
+                <div class="overflow-x-auto custom-scrollbar max-h-[480px] overflow-y-auto">
+                    <table class="w-full min-w-[860px] text-left border-collapse">
+                        <thead>
+                            <tr class="bg-paper sticky top-0 z-10">
+                                {% for col in columns %}
+                                <th class="px-3 py-2.5 font-mono text-[10px] font-semibold text-muted uppercase tracking-[0.12em] whitespace-nowrap border-b border-line bg-paper">{{ col }}</th>
+                                {% endfor %}
+                                <th class="px-3 py-2.5 text-center w-12 border-b border-line bg-paper"></th>
+                            </tr>
+                        </thead>
+                        <tbody id="schedule-table-body"></tbody>
+                    </table>
+                </div>
+            </div>
+            <p class="font-mono text-[11px] text-muted/70 mt-3 tracking-wide">
+                Зміни застосовуються автоматично — бот підхопить їх за кілька секунд після збереження.
+            </p>
+        </section>
     </main>
-    
+
+    <footer class="border-t border-line">
+        <div class="max-w-6xl mx-auto px-5 sm:px-8 py-5 flex items-center justify-between font-mono text-[10px] tracking-[0.2em] uppercase text-muted/60">
+            <span>Розклад · FKISIT</span>
+            <span>Mon — Fri · 2026</span>
+        </div>
+    </footer>
+
+    <div id="toasts"></div>
+
     <script>
-        const columns = [{% for col in columns %}"{{ col }}",{% endfor %}];
+        const COLUMNS = {{ columns | tojson }};
+        const ROWS = {{ rows | tojson }};
+        const META = {{ meta | tojson }};
+        const DROPDOWN_COLS = { "День": META.day_options, "Час": META.time_options, "Формат": META.format_options };
 
-        function addRow() {
-            const tbody = document.getElementById('schedule-table-body');
-            const tr = document.createElement('tr');
-            tr.className = "hover:bg-slate-50/50 transition bg-indigo-50/20";
+        // ─── Утиліти ───
+        function esc(v) {
+            return String(v == null ? "" : v)
+                .replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;")
+                .replaceAll('"', "&quot;").replaceAll("'", "&#39;");
+        }
+        const TRASH = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>';
 
-            columns.forEach(col => {
-                const td = document.createElement('td');
-                td.className = "p-0.5";
-                td.innerHTML = `<input type="text" value="" data-col="${col}" class="w-full bg-transparent px-2 py-1.5 text-xs text-slate-800 rounded-lg border border-transparent focus:border-indigo-500 focus:bg-white focus:outline-none transition">`;
-                tr.appendChild(td);
+        function toast(message, type) {
+            const el = document.createElement('div');
+            el.className = 'toast ' + (type || 'success');
+            const icon = (type === 'error')
+                ? '<svg class="mt-0.5 shrink-0" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#B23A2E" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/></svg>'
+                : '<svg class="mt-0.5 shrink-0" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1F5C46" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>';
+            el.innerHTML = icon + '<span>' + esc(message) + '</span>';
+            document.getElementById('toasts').appendChild(el);
+            requestAnimationFrame(() => el.classList.add('show'));
+            setTimeout(() => { el.classList.remove('show'); setTimeout(() => el.remove(), 300); }, 3800);
+        }
+
+        // ─── Стан редактора ───
+        let nextId = 0;
+        let data = ROWS.map(row => { const o = { _id: nextId++ }; COLUMNS.forEach(c => o[c] = row[c] || ""); return o; });
+        const filters = { course: "", group: "", day: "", q: "" };
+        let dirty = false;
+
+        const tbody = document.getElementById('schedule-table-body');
+        const dirtyBadge = document.getElementById('schedDirty');
+        const shownEl = document.getElementById('schedShown');
+
+        function markDirty() { if (!dirty) { dirty = true; dirtyBadge.classList.remove('hidden'); } }
+        function clearDirty() { dirty = false; dirtyBadge.classList.add('hidden'); }
+        function byId(id) { return data.find(r => r._id === id); }
+
+        function visibleRows() {
+            const q = filters.q.toLowerCase();
+            return data.filter(row => {
+                if (filters.course && row["Курс"] !== filters.course) return false;
+                if (filters.group && row["Група"] !== filters.group) return false;
+                if (filters.day && row["День"] !== filters.day) return false;
+                if (q) {
+                    const hay = COLUMNS.map(c => row[c] || "").join(" ").toLowerCase();
+                    if (!hay.includes(q)) return false;
+                }
+                return true;
             });
-
-            const actionsTd = document.createElement('td');
-            actionsTd.className = "p-0.5 text-center";
-            actionsTd.innerHTML = `<button onclick="deleteRow(this)" class="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg transition"><i class="fa-solid fa-trash-can text-xs"></i></button>`;
-            tr.appendChild(actionsTd);
-            tbody.appendChild(tr);
-            tr.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         }
 
-        function deleteRow(button) {
-            button.closest('tr').remove();
-        }
-
-        async function saveScheduleChanges() {
-            const rows = document.querySelectorAll('#schedule-table-body tr');
-            const payloadData = [];
-
-            rows.forEach(tr => {
-                const rowData = {};
-                let hasData = false;
-                columns.forEach(col => {
-                    const input = tr.querySelector(`input[data-col="${col}"]`);
-                    if (input) {
-                        const val = input.value.trim();
-                        rowData[col] = val;
-                        if(val !== "") hasData = true;
-                    }
+        function cellHtml(row, col) {
+            const val = row[col] || "";
+            if (DROPDOWN_COLS[col]) {
+                let opts = '<option value=""></option>';
+                DROPDOWN_COLS[col].forEach(o => {
+                    opts += '<option value="' + esc(o) + '"' + (o === val ? ' selected' : '') + '>' + esc(o) + '</option>';
                 });
-                if (hasData) payloadData.push(rowData);
-            });
+                return '<td class="p-0.5"><select class="cell" aria-label="' + esc(col) + '" data-id="' + row._id + '" data-col="' + esc(col) + '">' + opts + '</select></td>';
+            }
+            return '<td class="p-0.5"><input type="text" class="cell" aria-label="' + esc(col) + '" value="' + esc(val) + '" data-id="' + row._id + '" data-col="' + esc(col) + '"></td>';
+        }
 
-            if (payloadData.length === 0) {
-                alert('❌ Таблиця не може бути порожньою!');
+        function render() {
+            const rows = visibleRows();
+            shownEl.textContent = 'показано ' + rows.length + ' з ' + data.length;
+            if (!rows.length) {
+                tbody.innerHTML = '<tr><td colspan="' + (COLUMNS.length + 1) + '" class="px-4 py-10 text-center text-muted text-sm">Нічого не знайдено за цим фільтром.</td></tr>';
                 return;
             }
+            tbody.innerHTML = rows.map(row =>
+                '<tr class="border-b border-line/60 hover:bg-pine-soft/40 transition-colors duration-100">' +
+                COLUMNS.map(col => cellHtml(row, col)).join("") +
+                '<td class="p-0.5 text-center"><button data-del="' + row._id + '" aria-label="Видалити рядок" class="p-2 text-muted/60 hover:text-clay rounded-md transition-colors duration-150 cursor-pointer">' + TRASH + '</button></td>' +
+                '</tr>'
+            ).join("");
+        }
+
+        // Оновлення значень (делегування) — працює і для input, і для select
+        function onCellChange(e) {
+            const el = e.target;
+            if (!el.dataset || el.dataset.id === undefined) return;
+            const row = byId(+el.dataset.id);
+            if (row) { row[el.dataset.col] = el.value; markDirty(); }
+        }
+        tbody.addEventListener('input', onCellChange);
+        tbody.addEventListener('change', onCellChange);
+        tbody.addEventListener('click', e => {
+            const btn = e.target.closest('[data-del]');
+            if (btn) { data = data.filter(r => r._id !== +btn.dataset.del); markDirty(); render(); }
+        });
+
+        // Додавання рядка з префілом за активними фільтрами
+        document.getElementById('schedAdd').addEventListener('click', () => {
+            const row = { _id: nextId++ };
+            COLUMNS.forEach(c => row[c] = "");
+            if (filters.course) row["Курс"] = filters.course;
+            if (filters.group) row["Група"] = filters.group;
+            if (filters.day) row["День"] = filters.day;
+            data.push(row);
+            markDirty();
+            render();
+            const el = tbody.querySelector('[data-id="' + row._id + '"]');
+            if (el) { el.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); el.focus(); }
+        });
+
+        // ─── Фільтри ───
+        const fCourse = document.getElementById('fCourse');
+        const fGroup = document.getElementById('fGroup');
+        const fDay = document.getElementById('fDay');
+        const fSearch = document.getElementById('fSearch');
+
+        function populateGroups(course) {
+            const groups = course ? (META.course_to_groups[course] || []) : META.groups;
+            fGroup.innerHTML = '<option value="">Усі групи</option>' +
+                groups.map(g => '<option value="' + esc(g) + '">' + esc(g) + '</option>').join("");
+        }
+
+        fCourse.addEventListener('change', () => {
+            filters.course = fCourse.value;
+            populateGroups(filters.course);
+            filters.group = "";
+            render();
+        });
+        fGroup.addEventListener('change', () => { filters.group = fGroup.value; render(); });
+        fDay.addEventListener('change', () => { filters.day = fDay.value; render(); });
+        fSearch.addEventListener('input', () => { filters.q = fSearch.value; render(); });
+        document.getElementById('fReset').addEventListener('click', () => {
+            filters.course = filters.group = filters.day = filters.q = "";
+            fCourse.value = ""; fDay.value = ""; fSearch.value = "";
+            populateGroups("");
+            render();
+        });
+
+        // ─── Збереження ───
+        document.getElementById('schedSave').addEventListener('click', async () => {
+            const payload = data
+                .filter(row => COLUMNS.some(c => (row[c] || "").trim() !== ""))
+                .map(row => { const o = {}; COLUMNS.forEach(c => o[c] = (row[c] || "").trim()); return o; });
+
+            if (!payload.length) { toast('Таблиця не може бути порожньою.', 'error'); return; }
 
             try {
-                const response = await fetch('/save-schedule', {
+                const res = await fetch('/save-schedule', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ data: payloadData })
+                    body: JSON.stringify({ data: payload })
                 });
-
-                const result = await response.json();
-                if (response.ok) {
-                    alert('🎉 ' + result.message);
-                    window.location.reload();
-                } else {
-                    alert('❌ Помилка: ' + result.message);
-                }
+                const result = await res.json();
+                if (res.ok) { clearDirty(); toast(result.message, 'success'); }
+                else { toast('Помилка: ' + result.message, 'error'); }
             } catch (err) {
-                alert('❌ Помилка з’єднання із FastAPI сервером.');
+                toast('Помилка з’єднання із сервером.', 'error');
             }
+        });
+
+        window.addEventListener('beforeunload', e => {
+            if (dirty) { e.preventDefault(); e.returnValue = ''; }
+        });
+
+        // ─── Розсилка: лічильник одержувачів + підтвердження ───
+        const bcTarget = document.getElementById('bcTarget');
+        const bcCount = document.getElementById('bcCount');
+        const bcText = document.getElementById('bcText');
+        const bcChars = document.getElementById('bcChars');
+        const bcSend = document.getElementById('bcSend');
+        const bcConfirm = document.getElementById('bcConfirm');
+        const bcConfirmCount = document.getElementById('bcConfirmCount');
+        let recipientCount = 0;
+
+        function plural(n) {
+            const a = Math.abs(n) % 100, b = n % 10;
+            if (a > 10 && a < 20) return n + ' одержувачів';
+            if (b === 1) return n + ' одержувач';
+            if (b >= 2 && b <= 4) return n + ' одержувачі';
+            return n + ' одержувачів';
         }
+
+        async function refreshCount() {
+            bcCount.textContent = '…';
+            try {
+                const res = await fetch('/api/recipients?target=' + encodeURIComponent(bcTarget.value));
+                const data = await res.json();
+                recipientCount = data.count || 0;
+            } catch { recipientCount = 0; }
+            bcCount.textContent = plural(recipientCount);
+        }
+        bcTarget.addEventListener('change', () => { refreshCount(); hideConfirm(); });
+        refreshCount();
+
+        bcText.addEventListener('input', () => { bcChars.textContent = bcText.value.length + ' / 3500'; });
+
+        function hideConfirm() { bcConfirm.classList.add('hidden'); bcConfirm.classList.remove('flex'); }
+        bcSend.addEventListener('click', () => {
+            if (!bcText.value.trim()) { toast('Введіть текст оголошення.', 'error'); bcText.focus(); return; }
+            if (recipientCount === 0) { toast('За обраним фільтром немає одержувачів.', 'error'); return; }
+            bcConfirmCount.textContent = plural(recipientCount);
+            bcConfirm.classList.remove('hidden'); bcConfirm.classList.add('flex');
+            bcConfirm.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        });
+        document.getElementById('bcCancel').addEventListener('click', hideConfirm);
+
+        render();
     </script>
     {% endif %}
 </body>

@@ -55,6 +55,11 @@ async def get_notification_status(uid):
     val = await r.get(f"user:{uid}:notifications")
     return val == "1" if val is not None else True # Default True
 
+# Сигнал від веб-панелі: розклад змінено, треба скинути кеш розкладу в боті.
+async def consume_schedule_reload():
+    """Атомарно перевіряє й гасить прапорець schedule:reload. True, якщо було оновлення."""
+    return await r.getdel("schedule:reload") is not None
+
 
 
 
