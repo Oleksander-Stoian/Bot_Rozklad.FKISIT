@@ -58,9 +58,14 @@ WEEK_DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
 BELL_TIMES = ["08:30", "10:00", "11:45", "13:15", "14:45", "16:15", "17:45"]
 LESSON_FORMATS = ["Аудиторія", "Дистанційно"]
 
-# Секрет для підпису сесійних токенів. BOT_TOKEN відомий лише серверу,
-# тож зловмисник не може підробити підпис без нього.
-SESSION_SECRET = os.getenv("SESSION_SECRET") or BOT_TOKEN
+# Секрет для підпису сесійних токенів. РАНІШЕ падав на BOT_TOKEN — небезпечно:
+# BOT_TOKEN публічно витікав, тож будь-хто міг підробити сесійну куку. Тепер
+# fail-closed: секрет ОБОВ'ЯЗКОВО задається окремо в .env (openssl rand -hex 32).
+SESSION_SECRET = os.getenv("SESSION_SECRET")
+if not SESSION_SECRET:
+    raise RuntimeError(
+        "SESSION_SECRET не задано. Згенеруйте: openssl rand -hex 32 і додайте у .env"
+    )
 SESSION_TTL = 86400  # секунд
 
 
@@ -74,8 +79,14 @@ class SchedulePayload(BaseModel):
 
 # ──────────────────────────── Автентифікація ────────────────────────────
 
+# Максимальний вік initData. initData підписується BOT_TOKEN, а токен уже
+# публічно витікав — тож без перевірки auth_date перехоплена/згенерована initData
+# була б дійсна вічно. Обмежуємо вікном у 5 хвилин.
+INIT_DATA_MAX_AGE = 300
+
+
 def verify_telegram_data(init_data: str, bot_token: str) -> dict:
-    """Перевіряє валідність даних і цифровий підпис Telegram WebApp"""
+    """Перевіряє валідність даних, цифровий підпис і свіжість Telegram WebApp initData."""
     if not bot_token:
         return None
     try:
@@ -86,8 +97,16 @@ def verify_telegram_data(init_data: str, bot_token: str) -> dict:
         data_check_string = '\n'.join(f'{k}={v}' for k, v in sorted(vals.items()))
         secret_key = hmac.new(b"WebAppData", bot_token.encode(), hashlib.sha256).digest()
         computed_hash = hmac.new(secret_key, data_check_string.encode(), hashlib.sha256).hexdigest()
-        if computed_hash == hash_val:
-            return json.loads(vals.get('user', '{}'))
+        # Порівняння у сталий час, щоб не давати timing-оракул на підпис.
+        if not hmac.compare_digest(computed_hash, hash_val):
+            return None
+        # Відкидаємо застарілу initData (replay витеклих/перехоплених даних).
+        try:
+            if int(time.time()) - int(vals.get('auth_date', 0)) > INIT_DATA_MAX_AGE:
+                return None
+        except (ValueError, TypeError):
+            return None
+        return json.loads(vals.get('user', '{}'))
     except Exception:
         pass
     return None
@@ -131,15 +150,43 @@ def check_session(request: Request) -> bool:
         return False
 
 
+LOGIN_MAX_ATTEMPTS = 5      # спроб на вікно
+LOGIN_WINDOW = 300          # секунд
+
+
+def _client_ip(request: Request) -> str:
+    """Реальний IP клієнта за проксі (NPM). Потребує uvicorn --proxy-headers."""
+    fwd = request.headers.get("x-forwarded-for", "")
+    if fwd:
+        return fwd.split(",")[0].strip()
+    return request.client.host if request.client else "unknown"
+
+
+def login_rate_limited(request: Request) -> bool:
+    """Ковзний лічильник невдалих логінів по IP у Redis (спільний для всіх воркерів)."""
+    try:
+        key = f"login:attempts:{_client_ip(request)}"
+        attempts = r.incr(key)
+        if attempts == 1:
+            r.expire(key, LOGIN_WINDOW)
+        return attempts > LOGIN_MAX_ATTEMPTS
+    except Exception:
+        return False  # Redis недоступний → не блокуємо логін
+
+
 def verify_password(username: str, password: str) -> bool:
-    """Перевіряє логін/пароль браузерного входу (порівняння у сталий час)."""
-    if not hmac.compare_digest(username, ADMIN_USER):
+    """Перевіряє логін/пароль браузерного входу (порівняння у сталий час).
+
+    Кодуємо у bytes: hmac.compare_digest кидає TypeError на non-ASCII str,
+    що інакше давало б HTTP 500 як оракул на шляху логіну.
+    """
+    if not hmac.compare_digest(username.encode("utf-8"), ADMIN_USER.encode("utf-8")):
         return False
     if ADMIN_PASS_HASH:
         digest = hashlib.sha256(password.encode()).hexdigest()
-        return hmac.compare_digest(digest, ADMIN_PASS_HASH.strip().lower())
+        return hmac.compare_digest(digest.encode(), ADMIN_PASS_HASH.strip().lower().encode())
     if ADMIN_PASS:
-        return hmac.compare_digest(password, ADMIN_PASS)
+        return hmac.compare_digest(password.encode("utf-8"), ADMIN_PASS.encode("utf-8"))
     return False  # пароль не налаштовано → вхід через браузер вимкнено
 
 
@@ -314,6 +361,7 @@ async def api_auth(payload: AuthPayload):
         key=COOKIE_NAME,
         value=create_session_token(user_id),
         httponly=True,
+        secure=True,
         samesite="lax",
         max_age=SESSION_TTL,
     )
@@ -331,6 +379,12 @@ async def login_page(request: Request):
 @app.post("/login")
 async def login_submit(request: Request, username: str = Form(...), password: str = Form(...)):
     """Перевіряє облікові дані та видає підписану сесію (той самий механізм, що й Telegram)."""
+    if login_rate_limited(request):
+        return templates.TemplateResponse(
+            request, "login.html",
+            {"request": request, "error": "Забагато спроб. Спробуйте за кілька хвилин."},
+            status_code=429,
+        )
     if not verify_password(username, password):
         return templates.TemplateResponse(
             request, "login.html",
@@ -342,6 +396,7 @@ async def login_submit(request: Request, username: str = Form(...), password: st
         key=COOKIE_NAME,
         value=create_session_token(WEB_ADMIN_SUBJECT),
         httponly=True,
+        secure=True,
         samesite="lax",
         max_age=SESSION_TTL,
     )
@@ -398,8 +453,11 @@ async def save_schedule(payload: SchedulePayload, request: Request):
         except Exception:
             pass
         return {"status": "success", "message": "Розклад збережено. Бот застосує зміни автоматично за кілька секунд."}
-    except Exception as e:
-        return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
+    except Exception:
+        # Не віддаємо str(e) клієнту — може розкрити шляхи/структуру. Деталі — у лог.
+        import logging
+        logging.exception("save_schedule failed")
+        return JSONResponse(status_code=500, content={"status": "error", "message": "Не вдалося зберегти розклад."})
 
 
 @app.post("/broadcast")

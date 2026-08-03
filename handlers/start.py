@@ -1,6 +1,7 @@
 from aiogram import types, F, Router
 from aiogram.filters import Command
 from aiogram.types import ReplyKeyboardRemove
+from config import ADMIN_IDS
 from core.states import Form
 from keyboards.builders import role_kb, settings_kb
 from services.redis_service import get_notification_status, set_notification_status
@@ -54,6 +55,8 @@ async def stop_work_cb(cb: types.CallbackQuery, state):
 
 @router.message(Command("status"))
 async def status(msg: types.Message):
+    if msg.from_user.id not in ADMIN_IDS:
+        return  # Діагностика (hostname/OS/IP) — лише для адмінів
     import os, platform, socket
     from datetime import datetime
     name = os.getenv("INSTANCE_NAME") or platform.node()
